@@ -1,10 +1,9 @@
 [build]
   base = "."
-  command = "./build.sh"
-  publish = "build/web"
+  command = "echo 'Using pre-built web files'"
+  publish = "web"
 
 [build.environment]
-  FLUTTER_WEB = "true"
   NODE_VERSION = "18"
 
 [[redirects]]
