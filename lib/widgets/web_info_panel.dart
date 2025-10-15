@@ -2,7 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class WebInfoPanel extends StatelessWidget {
-  const WebInfoPanel({super.key});
+  final bool isMobile;
+  final bool isTablet;
+  
+  const WebInfoPanel({
+    super.key,
+    this.isMobile = false,
+    this.isTablet = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -18,7 +25,7 @@ class WebInfoPanel extends StatelessWidget {
         ],
       ),
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
+        padding: EdgeInsets.all(isMobile ? 12.0 : isTablet ? 16.0 : 24.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -26,7 +33,7 @@ class WebInfoPanel extends StatelessWidget {
             Center(
               child: Image.asset(
                 'assets/icons/nny_logo.png',
-                height: 120,
+                height: isMobile ? 60 : isTablet ? 80 : 120,
                 fit: BoxFit.contain,
                 errorBuilder: (context, error, stackTrace) {
                   return const Icon(Icons.school, size: 120);
@@ -34,45 +41,45 @@ class WebInfoPanel extends StatelessWidget {
               ),
             ),
             
-            const SizedBox(height: 24),
+            SizedBox(height: isMobile ? 12 : isTablet ? 18 : 24),
             
             // Üniversite adı
-            const Text(
+            Text(
               'NUH NACI YAZGAN ÜNİVERSİTESİ',
               style: TextStyle(
-                fontSize: 20,
+                fontSize: isMobile ? 14 : isTablet ? 16 : 20,
                 fontWeight: FontWeight.bold,
                 color: Colors.blue,
               ),
               textAlign: TextAlign.center,
             ),
             
-            const SizedBox(height: 8),
+            SizedBox(height: isMobile ? 4 : 8),
             
-            const Text(
+            Text(
               'Bilgisayar Programcılığı',
               style: TextStyle(
-                fontSize: 16,
+                fontSize: isMobile ? 12 : isTablet ? 14 : 16,
                 fontWeight: FontWeight.w500,
                 color: Colors.grey,
               ),
               textAlign: TextAlign.center,
             ),
             
-            const SizedBox(height: 32),
+            SizedBox(height: isMobile ? 16 : isTablet ? 24 : 32),
             
             // Proje bilgileri
-            const Text(
-              'KAYSERI MİLLET BAHÇESİ\nİNTERAKTİF HARİTA',
+            Text(
+              isMobile ? 'KAYSERI MİLLET BAHÇESİ\nHARİTA UYGULAMASI' : 'KAYSERI MİLLET BAHÇESİ\nİNTERAKTİF HARİTA',
               style: TextStyle(
-                fontSize: 24,
+                fontSize: isMobile ? 16 : isTablet ? 20 : 24,
                 fontWeight: FontWeight.bold,
                 color: Colors.black87,
               ),
               textAlign: TextAlign.center,
             ),
             
-            const SizedBox(height: 24),
+            SizedBox(height: isMobile ? 12 : isTablet ? 18 : 24),
             
             // Geliştirici bilgileri
             Container(
@@ -115,63 +122,67 @@ class WebInfoPanel extends StatelessWidget {
             
             const SizedBox(height: 24),
             
-            // Teknik bilgiler
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.green.shade50,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.green.shade200),
-              ),
-              child: const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Teknolojiler',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.green,
+            // Teknik bilgiler - Mobile'da gizle
+            if (!isMobile) ...[
+              Container(
+                padding: EdgeInsets.all(isTablet ? 12 : 16),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.green.shade200),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Teknolojiler',
+                      style: TextStyle(
+                        fontSize: isTablet ? 12 : 14,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.green,
+                      ),
                     ),
-                  ),
-                  SizedBox(height: 12),
-                  _TechItem(icon: Icons.phone_android, text: 'Flutter Framework'),
-                  _TechItem(icon: Icons.map, text: 'Google Maps API'),
-                  _TechItem(icon: Icons.directions, text: 'Google Directions API'),
-                  _TechItem(icon: Icons.location_on, text: 'GPS Navigasyon'),
-                  _TechItem(icon: Icons.wb_sunny, text: 'Gerçek Zamanlı Konum'),
-                ],
+                    SizedBox(height: isTablet ? 8 : 12),
+                    const _TechItem(icon: Icons.phone_android, text: 'Flutter Framework'),
+                    const _TechItem(icon: Icons.map, text: 'Google Maps API'),
+                    const _TechItem(icon: Icons.directions, text: 'Google Directions API'),
+                    const _TechItem(icon: Icons.location_on, text: 'GPS Navigasyon'),
+                    const _TechItem(icon: Icons.wb_sunny, text: 'Gerçek Zamanlı Konum'),
+                  ],
+                ),
               ),
-            ),
+              
+              SizedBox(height: isTablet ? 18 : 24),
+            ],
             
-            const SizedBox(height: 24),
-            
-            // Özellikler
+            // Özellikler - Mobile'da kompakt
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.all(isMobile ? 12 : isTablet ? 14 : 16),
               decoration: BoxDecoration(
                 color: Colors.orange.shade50,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: Colors.orange.shade200),
               ),
-              child: const Column(
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     'Özellikler',
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: isMobile ? 12 : isTablet ? 12 : 14,
                       fontWeight: FontWeight.bold,
                       color: Colors.orange,
                     ),
                   ),
-                  SizedBox(height: 12),
-                  _FeatureItem('19 İlgi Noktası (POI)'),
-                  _FeatureItem('Sesli Navigasyon'),
-                  _FeatureItem('Gerçek Zamanlı Konum Takibi'),
-                  _FeatureItem('WC ve Giriş Kapıları'),
-                  _FeatureItem('Üniversite Kampüsü'),
-                  _FeatureItem('Yürüyüş Rotaları'),
+                  SizedBox(height: isMobile ? 8 : isTablet ? 8 : 12),
+                  const _FeatureItem('19 İlgi Noktası (POI)'),
+                  if (!isMobile) ...[
+                    const _FeatureItem('Sesli Navigasyon'),
+                    const _FeatureItem('Gerçek Zamanlı Konum Takibi'),
+                    const _FeatureItem('WC ve Giriş Kapıları'),
+                    const _FeatureItem('Üniversite Kampüsü'),
+                  ],
+                  const _FeatureItem('Yürüyüş Rotaları'),
                 ],
               ),
             ),

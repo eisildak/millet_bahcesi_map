@@ -70,21 +70,80 @@ class _WebMapScreenState extends State<WebMapScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Row(
-        children: [
-          // Sol panel - Bilgi kısmı (%30)
-          const Expanded(
-            flex: 30,
-            child: WebInfoPanel(),
-          ),
-          
-          // Sağ panel - Harita kısmı (%70)
-          Expanded(
-            flex: 70,
-            child: _buildMapSection(),
-          ),
-        ],
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          // Mobile view (width < 768px)
+          if (constraints.maxWidth < 768) {
+            return _buildMobileLayout();
+          }
+          // Tablet view (768px <= width < 1024px)
+          else if (constraints.maxWidth < 1024) {
+            return _buildTabletLayout();
+          }
+          // Desktop view (width >= 1024px)
+          else {
+            return _buildDesktopLayout();
+          }
+        },
       ),
+    );
+  }
+
+  // Mobile Layout - Vertical stack with collapsible info panel
+  Widget _buildMobileLayout() {
+    return Column(
+      children: [
+        // Üst panel - Kompakt bilgi (%20)
+        Container(
+          height: MediaQuery.of(context).size.height * 0.2,
+          child: const SingleChildScrollView(
+            child: WebInfoPanel(isMobile: true),
+          ),
+        ),
+        
+        // Harita kısmı (%80)
+        Expanded(
+          child: _buildMapSection(),
+        ),
+      ],
+    );
+  }
+
+  // Tablet Layout - 40/60 split
+  Widget _buildTabletLayout() {
+    return Row(
+      children: [
+        // Sol panel - Bilgi kısmı (%40)
+        const Expanded(
+          flex: 40,
+          child: WebInfoPanel(isTablet: true),
+        ),
+        
+        // Sağ panel - Harita kısmı (%60)
+        Expanded(
+          flex: 60,
+          child: _buildMapSection(),
+        ),
+      ],
+    );
+  }
+
+  // Desktop Layout - 30/70 split (original)
+  Widget _buildDesktopLayout() {
+    return Row(
+      children: [
+        // Sol panel - Bilgi kısmı (%30)
+        const Expanded(
+          flex: 30,
+          child: WebInfoPanel(),
+        ),
+        
+        // Sağ panel - Harita kısmı (%70)
+        Expanded(
+          flex: 70,
+          child: _buildMapSection(),
+        ),
+      ],
     );
   }
 
