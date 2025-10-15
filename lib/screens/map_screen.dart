@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:provider/provider.dart';
 import '../services/map_service.dart';
@@ -6,6 +7,7 @@ import '../services/location_service.dart';
 import '../widgets/search_widget.dart';
 import '../widgets/poi_bottom_sheet.dart';
 import '../widgets/navigation_controls.dart';
+import 'web_map_screen.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -151,6 +153,11 @@ class _MapScreenState extends State<MapScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Web için özel layout kullan
+    if (kIsWeb) {
+      return const WebMapScreen();
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Kayseri Millet Bahçesi'),
