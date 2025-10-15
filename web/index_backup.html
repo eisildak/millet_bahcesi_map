@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <!--
+    If you are serving your web app in a path other than the root, change the
+    href value below to reflect the base path you are serving from.
+
+    The path provided below has to start and end with a slash "/" in order for
+    it to work correctly.
+
+    For more details:
+    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
+
+    This is a placeholder for base href that will be replaced by the value of
+    the `--base-href` argument provided to `flutter build`.
+  -->
+  <base href="./">
+
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="A new Flutter project.">
+
+  <!-- iOS meta tags & icons -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="kayseri_millet_bahcesi_map">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="favicon.png"/>
+
+  <title>Kayseri Millet Bahçesi</title>
+  <link rel="manifest" href="manifest.json">
+
+  <!-- Google Maps JavaScript API -->
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDWVBfYxASYj1aTqcS8pvHa67IDic4wthk&libraries=geometry,places"></script>
+  
+  <!-- Web için konum izni script'i -->
+  <script>
+    // Web'de konum erişimi için güvenli bağlantı kontrolü
+    if (navigator.geolocation) {
+      console.log('Geolocation destekleniyor');
+      
+      // HTTPS kontrolü
+      if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
+        console.warn('Geolocation HTTPS gerektiriyor. Şu anda: ' + location.protocol);
+      } else {
+        console.log('Güvenli bağlantı veya localhost - geolocation kullanılabilir');
+      }
+      
+      // Konum izni durumunu kontrol et
+      if (navigator.permissions) {
+        navigator.permissions.query({name:'geolocation'}).then(function(result) {
+          console.log('Konum izni durumu:', result.state);
+          if (result.state === 'granted') {
+            console.log('Konum izni verilmiş');
+          } else if (result.state === 'prompt') {
+            console.log('Konum izni istenecek');
+          } else {
+            console.log('Konum izni reddedildi');
+          }
+          
+          // İzin durumu değişikliklerini dinle
+          result.onchange = function() {
+            console.log('Konum izni durumu değişti:', result.state);
+          }
+        }).catch(function(error) {
+          console.log('İzin kontrolü hatası:', error);
+        });
+      } else {
+        console.log('Navigator.permissions desteklenmiyor');
+      }
+    } else {
+      console.log('Geolocation desteklenmiyor');
+    }
+
+    // Test için manuel konum alma fonksiyonu
+    window.testLocation = function() {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          function(position) {
+            console.log('Manuel konum testi başarılı:');
+            console.log('Latitude:', position.coords.latitude);
+            console.log('Longitude:', position.coords.longitude);
+            console.log('Accuracy:', position.coords.accuracy);
+          },
+          function(error) {
+            console.log('Manuel konum testi hatası:', error);
+            console.log('Hata kodu:', error.code);
+            console.log('Hata mesajı:', error.message);
+          },
+          {
+            enableHighAccuracy: false,
+            timeout: 10000,
+            maximumAge: 60000
+          }
+        );
+      }
+    };
+  </script>
+</head>
+<body>
+  <!-- Loading indicator -->
+  <div id="loading" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); font-family: Arial, sans-serif; text-align: center;">
+    <h2>🗺️ Kayseri Millet Bahçesi</h2>
+    <p>Uygulama yükleniyor...</p>
+    <div style="border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 40px; height: 40px; animation: spin 2s linear infinite; margin: 20px auto;"></div>
+  </div>
+  
+  <style>
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+
+  <script>
+    console.log('Loading flutter_bootstrap.js...');
+    
+    // Flutter bootstrap yükleme
+    var script = document.createElement('script');
+    script.src = 'flutter_bootstrap.js';
+    script.async = true;
+    
+    script.onload = function() {
+      console.log('Flutter bootstrap loaded successfully');
+      // Loading indicator'ı kaldır
+      var loading = document.getElementById('loading');
+      if (loading) {
+        loading.style.display = 'none';
+      }
+    };
+    
+    script.onerror = function() {
+      console.error('Failed to load flutter_bootstrap.js');
+      var loading = document.getElementById('loading');
+      if (loading) {
+        loading.innerHTML = '<h2>❌ Yükleme Hatası</h2><p>Uygulama yüklenemedi. Sayfa yenilemeyi deneyin.</p>';
+      }
+    };
+    
+    document.head.appendChild(script);
+  </script>
+</body>
+</html>
