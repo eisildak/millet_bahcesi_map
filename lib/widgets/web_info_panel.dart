@@ -194,21 +194,21 @@ class WebInfoPanel extends StatelessWidget {
             // Android APK
             _DownloadCard(
               title: 'Android APK',
-              subtitle: 'Android cihazlar için',
+              subtitle: 'Android cihazlar için - Otomatik Yükleme',
               icon: Icons.android,
               color: Colors.green,
-              onTap: () => _launchURL('https://github.com/your-repo/releases/download/v1.0/kayseri-millet-bahcesi-map-v1.0.apk'),
+              onTap: () => _launchURL('https://github.com/eisildak/millet_bahcesi_map/releases/download/v1.0/kayseri-millet-bahcesi-map-v1.0.apk'),
             ),
             
             const SizedBox(height: 12),
             
-            // iOS IPA
+            // iOS IPA - Enterprise Install
             _DownloadCard(
-              title: 'iOS IPA',
-              subtitle: 'iPhone ve iPad için',
+              title: 'iOS Uygulama',
+              subtitle: 'iPhone ve iPad için - Otomatik Yükleme',
               icon: Icons.phone_iphone,
               color: Colors.blue,
-              onTap: () => _launchURL('https://github.com/your-repo/releases/download/v1.0/kayseri-millet-bahcesi-map-v1.0.ipa'),
+              onTap: () => _launchURL('itms-services://?action=download-manifest&url=https://github.com/eisildak/millet_bahcesi_map/releases/download/v1.0/kayseri-millet-bahcesi-map.plist'),
             ),
             
             const SizedBox(height: 32),
