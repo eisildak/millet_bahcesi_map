@@ -14,7 +14,7 @@
     This is a placeholder for base href that will be replaced by the value of
     the `--base-href` argument provided to `flutter build`.
   -->
-  <base href="/">
+  <base href="./">
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
@@ -100,6 +100,46 @@
   </script>
 </head>
 <body>
-  <script src="flutter_bootstrap.js" async></script>
+  <!-- Loading indicator -->
+  <div id="loading" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); font-family: Arial, sans-serif; text-align: center;">
+    <h2>🗺️ Kayseri Millet Bahçesi</h2>
+    <p>Uygulama yükleniyor...</p>
+    <div style="border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 40px; height: 40px; animation: spin 2s linear infinite; margin: 20px auto;"></div>
+  </div>
+  
+  <style>
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+
+  <script>
+    console.log('Loading flutter_bootstrap.js...');
+    
+    // Flutter bootstrap yükleme
+    var script = document.createElement('script');
+    script.src = 'flutter_bootstrap.js';
+    script.async = true;
+    
+    script.onload = function() {
+      console.log('Flutter bootstrap loaded successfully');
+      // Loading indicator'ı kaldır
+      var loading = document.getElementById('loading');
+      if (loading) {
+        loading.style.display = 'none';
+      }
+    };
+    
+    script.onerror = function() {
+      console.error('Failed to load flutter_bootstrap.js');
+      var loading = document.getElementById('loading');
+      if (loading) {
+        loading.innerHTML = '<h2>❌ Yükleme Hatası</h2><p>Uygulama yüklenemedi. Sayfa yenilemeyi deneyin.</p>';
+      }
+    };
+    
+    document.head.appendChild(script);
+  </script>
 </body>
 </html>
