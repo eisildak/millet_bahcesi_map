@@ -17,7 +17,7 @@
 			<key>metadata</key>
 			<dict>
 				<key>bundle-identifier</key>
-				<string>com.nny.kayseri_millet_bahcesi_map</string>
+				<string>com.example.kayseriMilletBahcesiMap</string>
 				<key>bundle-version</key>
 				<string>1.0</string>
 				<key>kind</key>
@@ -25,7 +25,9 @@
 				<key>title</key>
 				<string>Kayseri Millet Bahçesi</string>
 				<key>subtitle</key>
-				<string>İnteraktif Harita Uygulaması</string>
+				<string>İnteraktif Harita Uygulaması - NNY</string>
+				<key>minimum-os-version</key>
+				<string>12.0</string>
 			</dict>
 		</dict>
 	</array>
