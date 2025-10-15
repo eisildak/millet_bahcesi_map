@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -13,6 +14,7 @@ class MapService extends ChangeNotifier {
   List<PointOfInterest> _filteredPois = [];
   bool _isNavigating = false;
   PointOfInterest? _selectedPoi;
+  Marker? _userLocationMarker;
 
   // Google API Key - Directions API için
   static const String _apiKey = 'AIzaSyDWVBfYxASYj1aTqcS8pvHa67IDic4wthk';
@@ -22,12 +24,21 @@ class MapService extends ChangeNotifier {
 
   // Getters
   GoogleMapController? get controller => _controller;
-  Set<Marker> get markers => _markers;
+  Set<Marker> get markers => _getAllMarkers();
   Set<Polyline> get polylines => _polylines;
   List<PointOfInterest> get pois => _pois;
   List<PointOfInterest> get filteredPois => _filteredPois;
   bool get isNavigating => _isNavigating;
   PointOfInterest? get selectedPoi => _selectedPoi;
+
+  // Tüm marker'ları (POI + kullanıcı konumu) döndür
+  Set<Marker> _getAllMarkers() {
+    Set<Marker> allMarkers = Set.from(_markers);
+    if (_userLocationMarker != null) {
+      allMarkers.add(_userLocationMarker!);
+    }
+    return allMarkers;
+  }
 
   void setController(GoogleMapController controller) {
     _controller = controller;
@@ -277,60 +288,162 @@ class MapService extends ChangeNotifier {
     _isNavigating = true;
     _selectedPoi = destination;
     
+    print('Navigasyon başlatılıyor: ${userLocation.latitude}, ${userLocation.longitude} -> ${destination.latitude}, ${destination.longitude}');
+    
+    // Kullanıcı konum marker'ını oluştur
+    await _createUserLocationMarker(userLocation);
+    
     try {
       await _getDirections(userLocation, LatLng(destination.latitude, destination.longitude));
     } catch (e) {
       debugPrint('Navigasyon hatası: $e');
+      
+      // Hata durumunda basit düz çizgi çiz
+      _createStraightLine(userLocation, LatLng(destination.latitude, destination.longitude));
     }
     
     notifyListeners();
   }
 
   Future<void> _getDirections(LatLng origin, LatLng destination) async {
-    if (_apiKey == 'YOUR_GOOGLE_MAPS_API_KEY_HERE') {
-      debugPrint('Google Maps API Key ayarlanmamış!');
-      return;
-    }
-
+    print('🗺️ Google Directions API çağrısı başlatılıyor...');
+    print('📍 Başlangıç: ${origin.latitude}, ${origin.longitude}');
+    print('🎯 Hedef: ${destination.latitude}, ${destination.longitude}');
+    
     final url = Uri.parse(
       'https://maps.googleapis.com/maps/api/directions/json?'
       'origin=${origin.latitude},${origin.longitude}&'
       'destination=${destination.latitude},${destination.longitude}&'
       'mode=walking&'
+      'language=tr&'
+      'region=tr&'
+      'units=metric&'
       'key=$_apiKey'
     );
 
+    print('🌐 API URL: $url');
+
     try {
-      final response = await http.get(url);
+      final response = await http.get(url, headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      });
+      
+      print('📡 HTTP Status: ${response.statusCode}');
       
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
+        print('✅ API Response Status: ${data['status']}');
         
         if (data['status'] == 'OK' && data['routes'].isNotEmpty) {
           final route = data['routes'][0];
+          
+          // Route bilgilerini log'la
+          if (route['legs'] != null && route['legs'].isNotEmpty) {
+            final leg = route['legs'][0];
+            print('🚶 Mesafe: ${leg['distance']['text']}');
+            print('⏱️ Süre: ${leg['duration']['text']}');
+            print('📝 Adımlar: ${leg['steps']?.length ?? 0} adım');
+          }
+          
           final polylinePoints = route['overview_polyline']['points'];
+          print('🛤️ Polyline bulundu (${polylinePoints.length} karakter), yol çiziliyor...');
           
           _createPolyline(polylinePoints);
+          
+          // Route başarılı olduğunu bildir
+          _showRouteSuccess(route);
+          
+        } else {
+          print('❌ API Hatası: ${data['status']}');
+          if (data['error_message'] != null) {
+            print('📄 Hata Detayı: ${data['error_message']}');
+          }
+          
+          // Hata mesajını kullanıcıya göster
+          if (data['status'] == 'ZERO_RESULTS') {
+            print('🚫 Bu nokta arasında yürüme rotası bulunamadı');
+          }
+          
+          // API hatası durumunda düz çizgi çiz
+          _createStraightLine(origin, destination);
         }
+      } else {
+        print('🔴 HTTP Hatası: ${response.statusCode}');
+        print('📄 Response Body: ${response.body}');
+        _createStraightLine(origin, destination);
       }
     } catch (e) {
-      debugPrint('Directions API hatası: $e');
+      print('💥 Directions API Network Hatası: $e');
+      _createStraightLine(origin, destination);
     }
   }
 
-  void _createPolyline(String encodedPolyline) {
-    List<LatLng> polylineCoordinates = _decodePolyline(encodedPolyline);
+  void _showRouteSuccess(Map<String, dynamic> route) {
+    try {
+      if (route['legs'] != null && route['legs'].isNotEmpty) {
+        final leg = route['legs'][0];
+        final distance = leg['distance']?['text'] ?? 'Bilinmeyen mesafe';
+        final duration = leg['duration']?['text'] ?? 'Bilinmeyen süre';
+        
+        print('✅ Rota başarıyla oluşturuldu: $distance, $duration');
+      }
+    } catch (e) {
+      print('Route bilgileri parse edilemedi: $e');
+    }
+  }
+
+  void _createStraightLine(LatLng origin, LatLng destination) {
+    print('⚠️ Google Maps rotası alınamadı, düz çizgi çiziliyor: $origin -> $destination');
     
     _polylines.clear();
     _polylines.add(
       Polyline(
-        polylineId: const PolylineId('navigation_route'),
-        points: polylineCoordinates,
-        color: Colors.blue,
-        width: 5,
-        patterns: [PatternItem.dot, PatternItem.gap(10)],
+        polylineId: const PolylineId('fallback_route'),
+        points: [origin, destination],
+        color: Colors.orange, // Turuncu renk (fallback olduğunu göster)
+        width: 4,
+        patterns: [PatternItem.dash(20), PatternItem.gap(10)], // Kesikli çizgi
+        geodesic: true,
       ),
     );
+    
+    print('🟠 Fallback düz rota çizildi (turuncu kesikli çizgi)');
+    notifyListeners();
+  }
+
+  void _createPolyline(String encodedPolyline) {
+    List<LatLng> polylineCoordinates = _decodePolyline(encodedPolyline);
+    print('🛤️ Polyline decode edildi: ${polylineCoordinates.length} koordinat noktası');
+    
+    if (polylineCoordinates.isEmpty) {
+      print('⚠️ Polyline boş, düz çizgi çiziliyor');
+      return;
+    }
+    
+    // İlk ve son noktaları log'la
+    if (polylineCoordinates.isNotEmpty) {
+      print('🚩 İlk nokta: ${polylineCoordinates.first.latitude}, ${polylineCoordinates.first.longitude}');
+      print('🏁 Son nokta: ${polylineCoordinates.last.latitude}, ${polylineCoordinates.last.longitude}');
+    }
+    
+    _polylines.clear();
+    _polylines.add(
+      Polyline(
+        polylineId: const PolylineId('walking_route'),
+        points: polylineCoordinates,
+        color: const Color(0xFF3252a8), // Mavi tema rengi
+        width: 6, // Daha kalın çizgi
+        patterns: [], // Düz çizgi (kesikli değil)
+        geodesic: true, // Dünya eğriliğini dikkate al
+        startCap: Cap.roundCap,
+        endCap: Cap.roundCap,
+        jointType: JointType.round,
+      ),
+    );
+    
+    print('✅ Google Maps yürüme rotası çizildi!');
+    notifyListeners();
   }
 
   List<LatLng> _decodePolyline(String encoded) {
@@ -381,7 +494,81 @@ class MapService extends ChangeNotifier {
     _isNavigating = false;
     _polylines.clear();
     _selectedPoi = null;
+    _userLocationMarker = null; // Kullanıcı marker'ını temizle
     notifyListeners();
+  }
+
+  // Kullanıcı konum marker'ı oluştur
+  Future<void> _createUserLocationMarker(LatLng userLocation) async {
+    print('Kullanıcı konum marker\'ı oluşturuluyor: ${userLocation.latitude}, ${userLocation.longitude}');
+    
+    final icon = await _createUserLocationIcon();
+    
+    _userLocationMarker = Marker(
+      markerId: const MarkerId('user_location'),
+      position: userLocation,
+      icon: icon,
+      infoWindow: const InfoWindow(
+        title: 'Konumunuz',
+        snippet: 'Mevcut konumunuz',
+      ),
+      zIndex: 1000, // En üstte görünsün
+    );
+  }
+
+  // Kullanıcı konum icon'u oluştur
+  Future<BitmapDescriptor> _createUserLocationIcon() async {
+    final pictureRecorder = ui.PictureRecorder();
+    final canvas = Canvas(pictureRecorder);
+    
+    // Dış çember (beyaz border)
+    final outerPaint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.fill;
+    
+    // İç çember (mavi)
+    final innerPaint = Paint()
+      ..color = const Color(0xFF3252a8)
+      ..style = PaintingStyle.fill;
+    
+    // Pulse efekti için büyük çember (şeffaf)
+    final pulsePaint = Paint()
+      ..color = const Color(0xFF3252a8).withOpacity(0.3)
+      ..style = PaintingStyle.fill;
+    
+    const double size = 40.0;
+    const double center = size / 2;
+    
+    // Pulse çember
+    canvas.drawCircle(const Offset(center, center), 18, pulsePaint);
+    
+    // Dış çember (beyaz border)
+    canvas.drawCircle(const Offset(center, center), 12, outerPaint);
+    
+    // İç çember (mavi)
+    canvas.drawCircle(const Offset(center, center), 8, innerPaint);
+    
+    final picture = pictureRecorder.endRecording();
+    final img = await picture.toImage(size.toInt(), size.toInt());
+    final byteData = await img.toByteData(format: ui.ImageByteFormat.png);
+    
+    return BitmapDescriptor.fromBytes(byteData!.buffer.asUint8List());
+  }
+
+  // Kullanıcı konumunu güncelle (takip sırasında)
+  void updateUserLocation(LatLng newLocation) {
+    if (!_isNavigating) return;
+    
+    print('Kullanıcı konumu güncelleniyor: ${newLocation.latitude}, ${newLocation.longitude}');
+    
+    _createUserLocationMarker(newLocation).then((_) {
+      notifyListeners();
+      
+      // Kamerayı kullanıcı konumunda tut
+      _controller?.animateCamera(
+        CameraUpdate.newLatLng(newLocation),
+      );
+    });
   }
 
   void centerOnMilletBahcesi() {

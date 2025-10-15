@@ -208,6 +208,8 @@ class POIBottomSheet extends StatelessWidget {
   }
 
   void _startNavigation(BuildContext context, MapService mapService, LocationService locationService) async {
+    print('Navigasyon başlatma talebi alındı...');
+    
     // Eğer konum yoksa önce konum al
     if (locationService.currentPosition == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -218,41 +220,59 @@ class POIBottomSheet extends StatelessWidget {
       );
       
       await locationService.getCurrentLocation();
-      
-      // Hala konum alınamadıysa hata göster
-      if (locationService.currentPosition == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Konum alınamadı: ${locationService.error ?? "Bilinmeyen hata"}'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 4),
-            action: SnackBarAction(
-              label: 'Tekrar Dene',
-              onPressed: () => _startNavigation(context, mapService, locationService),
-            ),
-          ),
-        );
-        return;
-      }
     }
     
-    final userLocation = LatLng(
-      locationService.currentPosition!.latitude,
-      locationService.currentPosition!.longitude,
-    );
-    
-    mapService.startNavigation(poi, userLocation);
-    
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('${poi.name} noktasına yürüyerek navigasyon başlatıldı'),
-        backgroundColor: Colors.green,
-        action: SnackBarAction(
-          label: 'Durdur',
-          onPressed: () => mapService.stopNavigation(),
+    // Konum var mı kontrol et
+    if (locationService.currentPosition != null) {
+      final userLocation = LatLng(
+        locationService.currentPosition!.latitude,
+        locationService.currentPosition!.longitude,
+      );
+      
+      print('Kullanıcı konumu: ${userLocation.latitude}, ${userLocation.longitude}');
+      print('Hedef: ${poi.latitude}, ${poi.longitude}');
+      
+      // Navigasyonu başlat
+      await mapService.startNavigation(poi, userLocation);
+      
+      // Konum takibini başlat
+      await locationService.startLocationTracking();
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${poi.name} noktasına rota çiziliyor - Konum takibi aktif'),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 3),
+          action: SnackBarAction(
+            label: 'Durdur',
+            onPressed: () {
+              mapService.stopNavigation();
+              locationService.stopLocationTracking();
+            },
+          ),
         ),
-      ),
-    );
+      );
+    } else {
+      // Konum alınamadı, Millet Bahçesi merkezinden başlat
+      const defaultLocation = LatLng(38.704200, 35.509500); // Millet Bahçesi merkezi
+      
+      print('Konum alınamadı, varsayılan konumdan başlatılıyor: ${defaultLocation.latitude}, ${defaultLocation.longitude}');
+      print('Hedef: ${poi.latitude}, ${poi.longitude}');
+      
+      await mapService.startNavigation(poi, defaultLocation);
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${poi.name} noktasına rota çiziliyor (Millet Bahçesi merkezinden)'),
+          backgroundColor: Colors.orange,
+          duration: const Duration(seconds: 3),
+          action: SnackBarAction(
+            label: 'Durdur',
+            onPressed: () => mapService.stopNavigation(),
+          ),
+        ),
+      );
+    }
   }
 
   void _sharePOI(BuildContext context) {

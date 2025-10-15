@@ -157,6 +157,11 @@ const PointOfInterest(
 4. Branch'e push edin (`git push origin feature/amazing-feature`)
 5. Pull Request açın
 
+## TODO
+1- NNY logosu düzenlenecek.
+2- web app applyfy'a yğklenecek
+3- mobile appler için QR oluşturulacak. 
+
 ## 📄 Lisans
 
 Bu proje MIT lisansı ile lisanslanmıştır. Detaylar için [LICENSE](LICENSE) dosyasını inceleyiniz.

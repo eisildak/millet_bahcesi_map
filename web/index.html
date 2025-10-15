@@ -34,6 +34,70 @@
 
   <!-- Google Maps JavaScript API -->
   <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDWVBfYxASYj1aTqcS8pvHa67IDic4wthk&libraries=geometry,places"></script>
+  
+  <!-- Web için konum izni script'i -->
+  <script>
+    // Web'de konum erişimi için güvenli bağlantı kontrolü
+    if (navigator.geolocation) {
+      console.log('Geolocation destekleniyor');
+      
+      // HTTPS kontrolü
+      if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
+        console.warn('Geolocation HTTPS gerektiriyor. Şu anda: ' + location.protocol);
+      } else {
+        console.log('Güvenli bağlantı veya localhost - geolocation kullanılabilir');
+      }
+      
+      // Konum izni durumunu kontrol et
+      if (navigator.permissions) {
+        navigator.permissions.query({name:'geolocation'}).then(function(result) {
+          console.log('Konum izni durumu:', result.state);
+          if (result.state === 'granted') {
+            console.log('Konum izni verilmiş');
+          } else if (result.state === 'prompt') {
+            console.log('Konum izni istenecek');
+          } else {
+            console.log('Konum izni reddedildi');
+          }
+          
+          // İzin durumu değişikliklerini dinle
+          result.onchange = function() {
+            console.log('Konum izni durumu değişti:', result.state);
+          }
+        }).catch(function(error) {
+          console.log('İzin kontrolü hatası:', error);
+        });
+      } else {
+        console.log('Navigator.permissions desteklenmiyor');
+      }
+    } else {
+      console.log('Geolocation desteklenmiyor');
+    }
+
+    // Test için manuel konum alma fonksiyonu
+    window.testLocation = function() {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          function(position) {
+            console.log('Manuel konum testi başarılı:');
+            console.log('Latitude:', position.coords.latitude);
+            console.log('Longitude:', position.coords.longitude);
+            console.log('Accuracy:', position.coords.accuracy);
+          },
+          function(error) {
+            console.log('Manuel konum testi hatası:', error);
+            console.log('Hata kodu:', error.code);
+            console.log('Hata mesajı:', error.message);
+          },
+          {
+            enableHighAccuracy: false,
+            timeout: 10000,
+            maximumAge: 60000
+          }
+        );
+      }
+    };
+  </script>
 </head>
 <body>
   <script src="flutter_bootstrap.js" async></script>

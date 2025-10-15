@@ -23,6 +23,28 @@ class _MapScreenState extends State<MapScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initializeServices();
+      _setupLocationListener();
+    });
+  }
+
+  void _setupLocationListener() {
+    final locationService = Provider.of<LocationService>(context, listen: false);
+    final mapService = Provider.of<MapService>(context, listen: false);
+    
+    // LocationService'i dinle ve konum değişikliklerini MapService'e ilet
+    locationService.addListener(() {
+      if (locationService.isTracking && 
+          locationService.currentPosition != null && 
+          mapService.isNavigating) {
+        
+        final newLocation = LatLng(
+          locationService.currentPosition!.latitude,
+          locationService.currentPosition!.longitude,
+        );
+        
+        // MapService'de kullanıcı konumunu güncelle
+        mapService.updateUserLocation(newLocation);
+      }
     });
   }
 
@@ -33,24 +55,91 @@ class _MapScreenState extends State<MapScreen> {
     // POI'ları initialize et
     await mapService.initializePOIs();
     
-    // Konum iznini hemen iste ve konumu al
-    await locationService.getCurrentLocation();
-    
-    // Eğer konum alınamazsa, tekrar dene
-    if (locationService.currentPosition == null && locationService.error != null) {
-      // Kullanıcıya bilgi ver ve tekrar dene
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${locationService.error} - Navigasyon için konum gerekli'),
-            duration: const Duration(seconds: 3),
-            action: SnackBarAction(
-              label: 'Tekrar Dene',
-              onPressed: () => locationService.getCurrentLocation(),
-            ),
-          ),
-        );
+    // Konum servisini başlat ama bekleme - arkaplanda çalışsın
+    _requestLocationWithDialog(locationService);
+  }
+
+  Future<void> _requestLocationWithDialog(LocationService locationService) async {
+    try {
+      await locationService.getCurrentLocation();
+      
+      if (locationService.currentPosition != null) {
+        // Konum başarıyla alındı
+        print('Konum başarıyla alındı: ${locationService.currentPosition}');
+        return;
       }
+    } catch (e) {
+      print('Konum alma hatası: $e');
+    }
+
+    // Konum alınamadıysa kullanıcıya seçenek sun
+    if (mounted && locationService.currentPosition == null) {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: const Text('Konum İzni'),
+            content: const Text(
+              'Navigasyon ve yakındaki noktaları gösterebilmek için konum izni gerekli.\n\n'
+              'İzin vermek istiyor musunuz?'
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  // İzin verilmezse varsayılan konuma git
+                  _mapController.animateCamera(
+                    CameraUpdate.newLatLngZoom(
+                      MapService.kayseriMilletBahcesi,
+                      16.0,
+                    ),
+                  );
+                },
+                child: const Text('Hayır'),
+              ),
+              TextButton(
+                onPressed: () async {
+                  Navigator.of(context).pop();
+                  await locationService.getCurrentLocation();
+                  
+                  if (locationService.currentPosition != null) {
+                    // Konum alındı, haritayı güncelle
+                    _mapController.animateCamera(
+                      CameraUpdate.newLatLngZoom(
+                        LatLng(
+                          locationService.currentPosition!.latitude,
+                          locationService.currentPosition!.longitude,
+                        ),
+                        17.0,
+                      ),
+                    );
+                  } else {
+                    // Hala konum alınamadı, kullanıcıya bilgi ver
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            locationService.error ?? 'Konum alınamadı. Lütfen cihaz ayarlarından konum servisini açın.'
+                          ),
+                          duration: const Duration(seconds: 4),
+                          action: SnackBarAction(
+                            label: 'Ayarlar',
+                            onPressed: () {
+                              // Kullanıcıyı ayarlara yönlendir
+                            },
+                          ),
+                        ),
+                      );
+                    }
+                  }
+                },
+                child: const Text('Evet'),
+              ),
+            ],
+          );
+        },
+      );
     }
   }
 
@@ -191,15 +280,47 @@ class _MapScreenState extends State<MapScreen> {
                   await locationService.getCurrentLocation();
                   
                   if (locationService.currentPosition != null) {
+                    print('Konuma gidiliyor: ${locationService.currentPosition!.latitude}, ${locationService.currentPosition!.longitude}');
                     _mapController.animateCamera(
                       CameraUpdate.newLatLngZoom(
                         LatLng(
                           locationService.currentPosition!.latitude,
                           locationService.currentPosition!.longitude,
                         ),
-                        18.0,
+                        17.0,
                       ),
                     );
+                    
+                    // Başarılı mesaj göster
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            locationService.error != null 
+                              ? 'Varsayılan konum gösteriliyor'
+                              : 'Mevcut konumunuz gösteriliyor'
+                          ),
+                          duration: const Duration(seconds: 2),
+                        ),
+                      );
+                    }
+                  } else {
+                    // Hata durumunda Millet Bahçesi'ne git
+                    _mapController.animateCamera(
+                      CameraUpdate.newLatLngZoom(
+                        MapService.kayseriMilletBahcesi,
+                        16.0,
+                      ),
+                    );
+                    
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Konum alınamadı, Millet Bahçesi gösteriliyor'),
+                          duration: Duration(seconds: 2),
+                        ),
+                      );
+                    }
                   }
                 },
                 backgroundColor: locationService.currentPosition != null

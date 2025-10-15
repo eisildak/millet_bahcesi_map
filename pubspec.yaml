@@ -28,7 +28,6 @@ dependencies:
   
   # UI bileşenleri
   material_design_icons_flutter: ^7.0.7296
-  flutter_typeahead: ^4.8.0
   
   # Diğer yardımcı paketler
   shared_preferences: ^2.2.2
@@ -45,5 +44,4 @@ flutter:
   uses-material-design: true
   
   assets:
-    - assets/images/
     - assets/icons/
