@@ -293,6 +293,9 @@ class MapService extends ChangeNotifier {
     // Kullanıcı konum marker'ını oluştur
     await _createUserLocationMarker(userLocation);
     
+    // Haritayı kullanıcı konumuna odakla
+    await _focusOnUserLocation(userLocation);
+    
     try {
       await _getDirections(userLocation, LatLng(destination.latitude, destination.longitude));
     } catch (e) {
@@ -575,5 +578,31 @@ class MapService extends ChangeNotifier {
     _controller?.animateCamera(
       CameraUpdate.newLatLngZoom(kayseriMilletBahcesi, 16.0),
     );
+  }
+
+  // Haritayı kullanıcı konumuna odakla
+  Future<void> _focusOnUserLocation(LatLng userLocation) async {
+    if (_controller != null) {
+      print('🎯 Harita kullanıcı konumuna odaklanıyor: ${userLocation.latitude}, ${userLocation.longitude}');
+      
+      await _controller!.animateCamera(
+        CameraUpdate.newCameraPosition(
+          CameraPosition(
+            target: userLocation,
+            zoom: 17.0, // Kullanıcı konumu için yüksek zoom
+            tilt: 45.0, // Hafif açılı görünüm
+            bearing: 0.0, // Kuzey yönü
+          ),
+        ),
+      );
+      
+      // Animasyon tamamlandıktan sonra kısa bir bekleme
+      await Future.delayed(const Duration(milliseconds: 500));
+    }
+  }
+
+  // Kullanıcı konumuna odaklanmak için public fonksiyon
+  Future<void> focusOnUserLocation(LatLng userLocation) async {
+    await _focusOnUserLocation(userLocation);
   }
 }
