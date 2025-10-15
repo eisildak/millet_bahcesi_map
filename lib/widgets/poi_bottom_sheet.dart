@@ -107,11 +107,13 @@ class POIBottomSheet extends StatelessWidget {
                 child: Consumer2<MapService, LocationService>(
                   builder: (context, mapService, locationService, child) {
                     return ElevatedButton.icon(
-                      onPressed: locationService.currentPosition != null
-                          ? () => _startNavigation(context, mapService, locationService)
-                          : null,
-                      icon: const Icon(Icons.directions_walk),
-                      label: const Text('Yürüyerek Git'),
+                      onPressed: () => _startNavigation(context, mapService, locationService),
+                      icon: Icon(locationService.currentPosition != null 
+                          ? Icons.directions_walk 
+                          : Icons.location_searching),
+                      label: Text(locationService.currentPosition != null 
+                          ? 'Yürüyerek Git' 
+                          : 'Konum Al & Git'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Theme.of(context).primaryColor,
                         foregroundColor: Colors.white,
@@ -205,7 +207,35 @@ class POIBottomSheet extends StatelessWidget {
     );
   }
 
-  void _startNavigation(BuildContext context, MapService mapService, LocationService locationService) {
+  void _startNavigation(BuildContext context, MapService mapService, LocationService locationService) async {
+    // Eğer konum yoksa önce konum al
+    if (locationService.currentPosition == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Konum alınıyor...'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      
+      await locationService.getCurrentLocation();
+      
+      // Hala konum alınamadıysa hata göster
+      if (locationService.currentPosition == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Konum alınamadı: ${locationService.error ?? "Bilinmeyen hata"}'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+            action: SnackBarAction(
+              label: 'Tekrar Dene',
+              onPressed: () => _startNavigation(context, mapService, locationService),
+            ),
+          ),
+        );
+        return;
+      }
+    }
+    
     final userLocation = LatLng(
       locationService.currentPosition!.latitude,
       locationService.currentPosition!.longitude,
@@ -215,7 +245,7 @@ class POIBottomSheet extends StatelessWidget {
     
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('${poi.name} noktasına navigasyon başlatıldı'),
+        content: Text('${poi.name} noktasına yürüyerek navigasyon başlatıldı'),
         backgroundColor: Colors.green,
         action: SnackBarAction(
           label: 'Durdur',

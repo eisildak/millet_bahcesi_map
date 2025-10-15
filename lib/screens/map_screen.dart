@@ -30,8 +30,28 @@ class _MapScreenState extends State<MapScreen> {
     final mapService = Provider.of<MapService>(context, listen: false);
     final locationService = Provider.of<LocationService>(context, listen: false);
     
+    // POI'ları initialize et
     await mapService.initializePOIs();
-    locationService.getCurrentLocation();
+    
+    // Konum iznini hemen iste ve konumu al
+    await locationService.getCurrentLocation();
+    
+    // Eğer konum alınamazsa, tekrar dene
+    if (locationService.currentPosition == null && locationService.error != null) {
+      // Kullanıcıya bilgi ver ve tekrar dene
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${locationService.error} - Navigasyon için konum gerekli'),
+            duration: const Duration(seconds: 3),
+            action: SnackBarAction(
+              label: 'Tekrar Dene',
+              onPressed: () => locationService.getCurrentLocation(),
+            ),
+          ),
+        );
+      }
+    }
   }
 
   void _onMapCreated(GoogleMapController controller) {
