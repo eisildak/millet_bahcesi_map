@@ -1,0 +1,49 @@
+name: kayseri_millet_bahcesi_map
+description: Kayseri Millet Bahçesi interaktif harita uygulaması
+
+publish_to: 'none' # Remove this line if you wish to publish to pub.dev
+
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.8.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # Harita ve konum servisleri
+  google_maps_flutter: ^2.5.0
+  location: ^5.0.3
+  geolocator: ^10.1.0
+  
+  # HTTP istekleri (Directions API için)
+  http: ^1.1.0
+  
+  # JSON işleme
+  json_annotation: ^4.8.1
+  
+  # State management
+  provider: ^6.1.1
+  
+  # UI bileşenleri
+  material_design_icons_flutter: ^7.0.7296
+  flutter_typeahead: ^4.8.0
+  
+  # Diğer yardımcı paketler
+  shared_preferences: ^2.2.2
+  url_launcher: ^6.2.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+  json_serializable: ^6.7.1
+  build_runner: ^2.4.7
+
+flutter:
+  uses-material-design: true
+  
+  assets:
+    - assets/images/
+    - assets/icons/
