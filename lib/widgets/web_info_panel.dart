@@ -2,17 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class WebInfoPanel extends StatelessWidget {
-  final bool isMobile;
-  final bool isTablet;
-  
-  const WebInfoPanel({
-    super.key,
-    this.isMobile = false,
-    this.isTablet = false,
-  });
+  const WebInfoPanel({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = screenWidth < 768;
+    
     return Container(
       decoration: const BoxDecoration(
         color: Colors.white,
@@ -25,15 +21,22 @@ class WebInfoPanel extends StatelessWidget {
         ],
       ),
       child: SingleChildScrollView(
-        padding: EdgeInsets.all(isMobile ? 12.0 : isTablet ? 16.0 : 24.0),
+        padding: EdgeInsets.all(isMobile ? 16.0 : 24.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+          children: isMobile ? _buildMobileContent() : _buildDesktopContent(),
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _buildDesktopContent() {
+    return [
             // NNY Logo
             Center(
               child: Image.asset(
                 'assets/icons/nny_logo.png',
-                height: isMobile ? 60 : isTablet ? 80 : 120,
+                height: 120,
                 fit: BoxFit.contain,
                 errorBuilder: (context, error, stackTrace) {
                   return const Icon(Icons.school, size: 120);
@@ -41,45 +44,45 @@ class WebInfoPanel extends StatelessWidget {
               ),
             ),
             
-            SizedBox(height: isMobile ? 12 : isTablet ? 18 : 24),
+            const SizedBox(height: 24),
             
             // Üniversite adı
-            Text(
+            const Text(
               'NUH NACI YAZGAN ÜNİVERSİTESİ',
               style: TextStyle(
-                fontSize: isMobile ? 14 : isTablet ? 16 : 20,
+                fontSize: 20,
                 fontWeight: FontWeight.bold,
                 color: Colors.blue,
               ),
               textAlign: TextAlign.center,
             ),
             
-            SizedBox(height: isMobile ? 4 : 8),
+            const SizedBox(height: 8),
             
-            Text(
+            const Text(
               'Bilgisayar Programcılığı',
               style: TextStyle(
-                fontSize: isMobile ? 12 : isTablet ? 14 : 16,
+                fontSize: 16,
                 fontWeight: FontWeight.w500,
                 color: Colors.grey,
               ),
               textAlign: TextAlign.center,
             ),
             
-            SizedBox(height: isMobile ? 16 : isTablet ? 24 : 32),
+            const SizedBox(height: 32),
             
             // Proje bilgileri
-            Text(
-              isMobile ? 'KAYSERI MİLLET BAHÇESİ\nHARİTA UYGULAMASI' : 'KAYSERI MİLLET BAHÇESİ\nİNTERAKTİF HARİTA',
+            const Text(
+              'KAYSERI MİLLET BAHÇESİ\nİNTERAKTİF HARİTA',
               style: TextStyle(
-                fontSize: isMobile ? 16 : isTablet ? 20 : 24,
+                fontSize: 24,
                 fontWeight: FontWeight.bold,
                 color: Colors.black87,
               ),
               textAlign: TextAlign.center,
             ),
             
-            SizedBox(height: isMobile ? 12 : isTablet ? 18 : 24),
+            const SizedBox(height: 24),
             
             // Geliştirici bilgileri
             Container(
@@ -122,67 +125,63 @@ class WebInfoPanel extends StatelessWidget {
             
             const SizedBox(height: 24),
             
-            // Teknik bilgiler - Mobile'da gizle
-            if (!isMobile) ...[
-              Container(
-                padding: EdgeInsets.all(isTablet ? 12 : 16),
-                decoration: BoxDecoration(
-                  color: Colors.green.shade50,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.green.shade200),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Teknolojiler',
-                      style: TextStyle(
-                        fontSize: isTablet ? 12 : 14,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.green,
-                      ),
-                    ),
-                    SizedBox(height: isTablet ? 8 : 12),
-                    const _TechItem(icon: Icons.phone_android, text: 'Flutter Framework'),
-                    const _TechItem(icon: Icons.map, text: 'Google Maps API'),
-                    const _TechItem(icon: Icons.directions, text: 'Google Directions API'),
-                    const _TechItem(icon: Icons.location_on, text: 'GPS Navigasyon'),
-                    const _TechItem(icon: Icons.wb_sunny, text: 'Gerçek Zamanlı Konum'),
-                  ],
-                ),
-              ),
-              
-              SizedBox(height: isTablet ? 18 : 24),
-            ],
-            
-            // Özellikler - Mobile'da kompakt
+            // Teknik bilgiler
             Container(
-              padding: EdgeInsets.all(isMobile ? 12 : isTablet ? 14 : 16),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.green.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.green.shade200),
+              ),
+              child: const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Teknolojiler',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.green,
+                    ),
+                  ),
+                  SizedBox(height: 12),
+                  _TechItem(icon: Icons.phone_android, text: 'Flutter Framework'),
+                  _TechItem(icon: Icons.map, text: 'Google Maps API'),
+                  _TechItem(icon: Icons.directions, text: 'Google Directions API'),
+                  _TechItem(icon: Icons.location_on, text: 'GPS Navigasyon'),
+                  _TechItem(icon: Icons.wb_sunny, text: 'Gerçek Zamanlı Konum'),
+                ],
+              ),
+            ),
+            
+            const SizedBox(height: 24),
+            
+            // Özellikler
+            Container(
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: Colors.orange.shade50,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: Colors.orange.shade200),
               ),
-              child: Column(
+              child: const Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     'Özellikler',
                     style: TextStyle(
-                      fontSize: isMobile ? 12 : isTablet ? 12 : 14,
+                      fontSize: 14,
                       fontWeight: FontWeight.bold,
                       color: Colors.orange,
                     ),
                   ),
-                  SizedBox(height: isMobile ? 8 : isTablet ? 8 : 12),
-                  const _FeatureItem('19 İlgi Noktası (POI)'),
-                  if (!isMobile) ...[
-                    const _FeatureItem('Sesli Navigasyon'),
-                    const _FeatureItem('Gerçek Zamanlı Konum Takibi'),
-                    const _FeatureItem('WC ve Giriş Kapıları'),
-                    const _FeatureItem('Üniversite Kampüsü'),
-                  ],
-                  const _FeatureItem('Yürüyüş Rotaları'),
+                  SizedBox(height: 12),
+                  _FeatureItem('19 İlgi Noktası (POI)'),
+                  _FeatureItem('Sesli Navigasyon'),
+                  _FeatureItem('Gerçek Zamanlı Konum Takibi'),
+                  _FeatureItem('WC ve Giriş Kapıları'),
+                  _FeatureItem('Üniversite Kampüsü'),
+                  _FeatureItem('Yürüyüş Rotaları'),
                 ],
               ),
             ),
@@ -268,10 +267,102 @@ class WebInfoPanel extends StatelessWidget {
                 textAlign: TextAlign.center,
               ),
             ),
-          ],
-        ),
+    ];
+  }
+
+  List<Widget> _buildMobileContent() {
+    return [
+      // Kompakt mobile layout
+      Row(
+        children: [
+          // Mini logo
+          Image.asset(
+            'assets/icons/nny_logo.png',
+            height: 50,
+            fit: BoxFit.contain,
+            errorBuilder: (context, error, stackTrace) {
+              return const Icon(Icons.school, size: 50);
+            },
+          ),
+          
+          const SizedBox(width: 12),
+          
+          // Kompakt bilgi
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Kayseri Millet Bahçesi',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'İnteraktif Harita Uygulaması',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                
+                // Tek satır download butonu
+                GestureDetector(
+                  onTap: () => WebInfoPanel._launchURL('https://eisildak.github.io/millet_bahcesi_map/ios_install.html'),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.blue,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.smartphone, size: 16, color: Colors.white),
+                        SizedBox(width: 4),
+                        Text(
+                          'Mobil Uygulama',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.white,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
-    );
+      
+      const SizedBox(height: 16),
+      
+      // İletişim bilgileri (mobile için kompakt)
+      Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          _MobileContactItem(
+            icon: Icons.email,
+            onTap: () => WebInfoPanel._launchURL('mailto:erol.isildak@hotmail.com'),
+          ),
+          _MobileContactItem(
+            icon: Icons.phone,
+            onTap: () => WebInfoPanel._launchURL('tel:+905535727776'),
+          ),
+          _MobileContactItem(
+            icon: Icons.business,
+            onTap: () => WebInfoPanel._launchURL('https://www.linkedin.com/in/erol-isildak-softwaretester/'),
+          ),
+        ],
+      ),
+    ];
   }
 
   static Future<void> _launchURL(String url) async {
@@ -439,6 +530,31 @@ class _ContactItem extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _MobileContactItem extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _MobileContactItem({
+    required this.icon,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(icon, size: 20, color: Colors.blue),
       ),
     );
   }
