@@ -272,95 +272,95 @@ class WebInfoPanel extends StatelessWidget {
 
   List<Widget> _buildMobileContent() {
     return [
-      // Kompakt mobile layout
-      Row(
-        children: [
-          // Mini logo
-          Image.asset(
-            'assets/icons/nny_logo.png',
-            height: 50,
-            fit: BoxFit.contain,
-            errorBuilder: (context, error, stackTrace) {
-              return const Icon(Icons.school, size: 50);
-            },
-          ),
-          
-          const SizedBox(width: 12),
-          
-          // Kompakt bilgi
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      // Logo - kompakt
+      Center(
+        child: Image.asset(
+          'assets/icons/nny_logo.png',
+          height: 40,
+          fit: BoxFit.contain,
+          errorBuilder: (context, error, stackTrace) {
+            return const Icon(Icons.school, size: 40, color: Colors.blue);
+          },
+        ),
+      ),
+      
+      const SizedBox(height: 12),
+      
+      // Başlık - kompakt
+      const Text(
+        'Kayseri Millet Bahçesi',
+        style: TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+          color: Color(0xFF2E7D32),
+        ),
+        textAlign: TextAlign.center,
+      ),
+      
+      const SizedBox(height: 4),
+      
+      const Text(
+        'İnteraktif Harita',
+        style: TextStyle(
+          fontSize: 14,
+          color: Colors.grey,
+        ),
+        textAlign: TextAlign.center,
+      ),
+      
+      const Spacer(),
+      
+      // Download butonu - orta kısmında
+      Center(
+        child: GestureDetector(
+          onTap: () => WebInfoPanel._launchURL('https://eisildak.github.io/millet_bahcesi_map/ios_install.html'),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: BoxDecoration(
+              color: const Color(0xFF2E7D32),
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.green.withOpacity(0.3),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                const Text(
-                  'Kayseri Millet Bahçesi',
+                Icon(Icons.download, size: 18, color: Colors.white),
+                SizedBox(width: 6),
+                Text(
+                  'Mobil App İndir',
                   style: TextStyle(
-                    fontSize: 16,
+                    fontSize: 13,
+                    color: Colors.white,
                     fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                const Text(
-                  'İnteraktif Harita Uygulaması',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                
-                // Tek satır download butonu
-                GestureDetector(
-                  onTap: () => WebInfoPanel._launchURL('https://eisildak.github.io/millet_bahcesi_map/ios_install.html'),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.blue,
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.smartphone, size: 16, color: Colors.white),
-                        SizedBox(width: 4),
-                        Text(
-                          'Mobil Uygulama',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.white,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
                   ),
                 ),
               ],
             ),
           ),
-        ],
+        ),
       ),
       
-      const SizedBox(height: 16),
+      const Spacer(),
       
-      // İletişim bilgileri (mobile için kompakt)
-      Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          _MobileContactItem(
-            icon: Icons.email,
-            onTap: () => WebInfoPanel._launchURL('mailto:erol.isildak@hotmail.com'),
-          ),
-          _MobileContactItem(
-            icon: Icons.phone,
-            onTap: () => WebInfoPanel._launchURL('tel:+905535727776'),
-          ),
-          _MobileContactItem(
-            icon: Icons.business,
-            onTap: () => WebInfoPanel._launchURL('https://www.linkedin.com/in/erol-isildak-softwaretester/'),
-          ),
-        ],
+      // Özet bilgi - en altta
+      Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: Colors.blue.shade50,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: Colors.blue.shade200),
+        ),
+        child: const Text(
+          '� 19 konum • 🚶‍♂️ Navigasyon • 📱 GPS takip',
+          style: TextStyle(fontSize: 11),
+          textAlign: TextAlign.center,
+        ),
       ),
     ];
   }
@@ -537,10 +537,12 @@ class _ContactItem extends StatelessWidget {
 
 class _MobileContactItem extends StatelessWidget {
   final IconData icon;
+  final String label;
   final VoidCallback onTap;
 
   const _MobileContactItem({
     required this.icon,
+    required this.label,
     required this.onTap,
   });
 
@@ -549,12 +551,27 @@ class _MobileContactItem extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(8),
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
         decoration: BoxDecoration(
-          color: Colors.grey.shade100,
+          color: Colors.white,
           borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.blue.shade200),
         ),
-        child: Icon(icon, size: 20, color: Colors.blue),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 24, color: Colors.blue),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 10,
+                color: Colors.blue,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

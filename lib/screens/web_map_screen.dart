@@ -98,14 +98,15 @@ class _WebMapScreenState extends State<WebMapScreen> {
   Widget _buildMobileLayout() {
     return Column(
       children: [
-        // Üst panel - Bilgi kısmı (mobilde daha küçük)
-        Container(
-          height: 200, // Sabit yükseklik
+        // Üst panel - Yazı kısmı (7/10 = %70)
+        Expanded(
+          flex: 7,
           child: const WebInfoPanel(),
         ),
         
-        // Alt panel - Harita kısmı (mobilde daha büyük)
+        // Alt panel - Harita kısmı (3/10 = %30)
         Expanded(
+          flex: 3,
           child: _buildMapSection(),
         ),
       ],
