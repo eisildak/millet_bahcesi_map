@@ -43,3 +43,8 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Build artifacts - APK/IPA files (too large for git)
+*.apk
+*.ipa
+ios_build/
