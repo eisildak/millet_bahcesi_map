@@ -100,7 +100,7 @@ class _SplashScreenState extends State<SplashScreen>
                               height: 200,
                               decoration: BoxDecoration(
                                 color: Colors.white,
-                                shape: BoxShape.circle,
+                                borderRadius: BorderRadius.circular(20),
                                 boxShadow: [
                                   BoxShadow(
                                     color: Colors.black.withOpacity(0.1),
@@ -110,91 +110,45 @@ class _SplashScreenState extends State<SplashScreen>
                                 ],
                               ),
                               child: Padding(
-                                padding: const EdgeInsets.all(10),
-                                // NNY Üniversitesi Logo - Güvenilir Tasarım
-                                child: Container(
-                                  width: 180,
-                                  height: 180,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    gradient: const LinearGradient(
-                                      colors: [
-                                        Color(0xFF1e3a5f),
-                                        Color(0xFF3252a8),
-                                      ],
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
-                                    ),
-                                    border: Border.all(
-                                      color: Colors.white,
-                                      width: 6,
-                                    ),
-                                  ),
-                                  child: Stack(
-                                    children: [
-                                      // Ana logo içeriği
-                                      Column(
-                                        mainAxisAlignment: MainAxisAlignment.center,
-                                        children: [
-                                          // Dağ simgesi (mavi türkuaz)
-                                          Container(
-                                            width: 90,
-                                            height: 25,
+                                padding: const EdgeInsets.all(20),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(10),
+                                  child: Image.asset(
+                                    'assets/icons/nny_university_logo.png',
+                                    fit: BoxFit.contain,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      // Fallback logo yüklenemezse
+                                      return Image.asset(
+                                        'assets/icons/nny_logo.png',
+                                        fit: BoxFit.contain,
+                                        errorBuilder: (context, error, stackTrace) {
+                                          // Her ikisi de yüklenemezse varsayılan simge
+                                          return Container(
                                             decoration: BoxDecoration(
-                                              borderRadius: BorderRadius.circular(12),
+                                              gradient: const LinearGradient(
+                                                colors: [
+                                                  Color(0xFF1e3a5f),
+                                                  Color(0xFF3252a8),
+                                                ],
+                                                begin: Alignment.topLeft,
+                                                end: Alignment.bottomRight,
+                                              ),
+                                              borderRadius: BorderRadius.circular(10),
                                             ),
-                                            child: CustomPaint(
-                                              painter: MountainPainter(),
-                                            ),
-                                          ),
-                                          const SizedBox(height: 12),
-                                          // NNY Text
-                                          const Text(
-                                            'NNY',
-                                            style: TextStyle(
-                                              fontSize: 36,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.white,
-                                              letterSpacing: 3,
-                                              shadows: [
-                                                Shadow(
-                                                  color: Colors.black26,
-                                                  offset: Offset(0, 2),
-                                                  blurRadius: 4,
+                                            child: const Center(
+                                              child: Text(
+                                                'NNY',
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 32,
+                                                  fontWeight: FontWeight.bold,
                                                 ),
-                                              ],
+                                              ),
                                             ),
-                                          ),
-                                          const SizedBox(height: 8),
-                                          // Divider line
-                                          Container(
-                                            height: 3,
-                                            width: 120,
-                                            decoration: BoxDecoration(
-                                              color: Colors.white,
-                                              borderRadius: BorderRadius.circular(2),
-                                            ),
-                                          ),
-                                          const SizedBox(height: 8),
-                                          // Year
-                                          const Text(
-                                            '2009',
-                                            style: TextStyle(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.w600,
-                                              color: Colors.white70,
-                                              letterSpacing: 1,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      // Çevresel yazılar
-                                      Positioned.fill(
-                                        child: CustomPaint(
-                                          painter: CircularTextPainter(),
-                                        ),
-                                      ),
-                                    ],
+                                          );
+                                        },
+                                      );
+                                    },
                                   ),
                                 ),
                               ),

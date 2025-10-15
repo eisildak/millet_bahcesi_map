@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:http/http.dart' as http;
 import '../models/point_of_interest.dart';
@@ -158,9 +159,30 @@ class MapService extends ChangeNotifier {
   }
 
   Future<BitmapDescriptor> _createUniversityMarker() async {
+    try {
+      // NNY logosunu asset'ten yükle
+      return await BitmapDescriptor.asset(
+        const ImageConfiguration(size: Size(48, 48)),
+        'assets/icons/nny_university_logo.png',
+      );
+    } catch (e) {
+      // Logo yüklenemezse alternatif logoyu dene
+      try {
+        return await BitmapDescriptor.asset(
+          const ImageConfiguration(size: Size(48, 48)),
+          'assets/icons/nny_logo.png',
+        );
+      } catch (e2) {
+        // Her ikisi de yüklenemezse custom marker oluştur
+        return await _createCustomUniversityMarker();
+      }
+    }
+  }
+
+  Future<BitmapDescriptor> _createCustomUniversityMarker() async {
     final pictureRecorder = ui.PictureRecorder();
     final canvas = Canvas(pictureRecorder);
-    const size = Size(50, 50);
+    const size = Size(48, 48);
 
     // Beyaz daire arka plan
     final backgroundPaint = Paint()..color = Colors.white;
@@ -188,41 +210,15 @@ class MapService extends ChangeNotifier {
       gradientPaint,
     );
 
-    // Beyaz iç çerçeve
-    final innerBorderPaint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2;
-    canvas.drawCircle(
-      Offset(size.width / 2, size.height / 2),
-      size.width / 2 - 5,
-      innerBorderPaint,
-    );
-
-    // Mini dağ simgesi (türkuaz) - büyütülmüş
-    final mountainPaint = Paint()
-      ..color = const Color(0xFF00bcd4)
-      ..style = PaintingStyle.fill;
-
-    final mountainPath = Path()
-      ..moveTo(14, 28)
-      ..lineTo(19, 18)
-      ..lineTo(25, 22)
-      ..lineTo(31, 15)
-      ..lineTo(36, 28)
-      ..close();
-
-    canvas.drawPath(mountainPath, mountainPaint);
-
     // NNY yazısı - büyütülmüş
     final textPainter = TextPainter(textDirection: TextDirection.ltr);
     textPainter.text = const TextSpan(
       text: 'NNY',
       style: TextStyle(
-        fontSize: 10,
+        fontSize: 12,
         fontWeight: FontWeight.bold,
         color: Colors.white,
-        letterSpacing: 0.7,
+        letterSpacing: 1,
       ),
     );
     textPainter.layout();
@@ -230,35 +226,7 @@ class MapService extends ChangeNotifier {
       canvas,
       Offset(
         (size.width - textPainter.width) / 2,
-        size.height / 2 + 3,
-      ),
-    );
-
-    // Alt çizgi - büyütülmüş
-    final linePaint = Paint()
-      ..color = Colors.white
-      ..strokeWidth = 1.5;
-    canvas.drawLine(
-      const Offset(12, 38),
-      const Offset(38, 38),
-      linePaint,
-    );
-
-    // 2009 yazısı - büyütülmüş
-    textPainter.text = const TextSpan(
-      text: '2009',
-      style: TextStyle(
-        fontSize: 5,
-        color: Colors.white70,
-        fontWeight: FontWeight.w500,
-      ),
-    );
-    textPainter.layout();
-    textPainter.paint(
-      canvas,
-      Offset(
-        (size.width - textPainter.width) / 2,
-        41,
+        (size.height - textPainter.height) / 2,
       ),
     );
 
