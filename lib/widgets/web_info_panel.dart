@@ -201,12 +201,88 @@ class WebInfoPanel extends StatelessWidget {
             
             const SizedBox(height: 16),
             
-            // Mobil Uygulama - Tek Kurulum Sayfası
+            // Android APK İndirme
             _DownloadCard(
-              title: 'Mobil Uygulama',
-              subtitle: 'Android & iOS - Tek Tıkla Kurulum',
-              icon: Icons.smartphone,
-              color: Colors.purple,
+              title: 'Android APK',
+              subtitle: 'Direkt APK İndir - Hızlı Kurulum',
+              icon: Icons.android,
+              color: Colors.green,
+              onTap: () => _launchURL('https://drive.google.com/uc?export=download&id=1DNm9x4rlQHbyD9eilU4fvBGRyRrBiWCS'),
+            ),
+            
+            const SizedBox(height: 12),
+            
+            // QR Kod ve açıklama
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.blue.shade200),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.qr_code_2,
+                        color: Colors.blue.shade700,
+                        size: 24,
+                      ),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Text(
+                          'QR Kodu Okut veya Tıkla',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  GestureDetector(
+                    onTap: () => _launchURL('https://drive.google.com/uc?export=download&id=1DNm9x4rlQHbyD9eilU4fvBGRyRrBiWCS'),
+                    child: Container(
+                      width: 120,
+                      height: 120,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: const Center(
+                        child: Icon(
+                          Icons.qr_code_2,
+                          size: 80,
+                          color: Colors.black54,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Android APK için QR kodu okut\nveya bu alana tıkla',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.blue.shade700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            
+            const SizedBox(height: 12),
+            
+            // iOS Kurulum Sayfası  
+            _DownloadCard(
+              title: 'iOS Kurulum',
+              subtitle: 'iPhone & iPad - Kurulum Rehberi',
+              icon: Icons.apple,
+              color: Colors.grey.shade700,
               onTap: () => _launchURL('https://eisildak.github.io/millet_bahcesi_map/ios_install.html'),
             ),
             
@@ -313,7 +389,7 @@ class WebInfoPanel extends StatelessWidget {
       // Download butonu - orta kısmında
       Center(
         child: GestureDetector(
-          onTap: () => WebInfoPanel._launchURL('https://eisildak.github.io/millet_bahcesi_map/ios_install.html'),
+          onTap: () => _launchURL('https://drive.google.com/uc?export=download&id=1DNm9x4rlQHbyD9eilU4fvBGRyRrBiWCS'),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: BoxDecoration(
@@ -330,10 +406,10 @@ class WebInfoPanel extends StatelessWidget {
             child: const Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.download, size: 18, color: Colors.white),
+                Icon(Icons.android, size: 18, color: Colors.white),
                 SizedBox(width: 6),
                 Text(
-                  'Mobil App İndir',
+                  'Android APK İndir',
                   style: TextStyle(
                     fontSize: 13,
                     color: Colors.white,
@@ -365,7 +441,7 @@ class WebInfoPanel extends StatelessWidget {
     ];
   }
 
-  static Future<void> _launchURL(String url) async {
+  Future<void> _launchURL(String url) async {
     final Uri uri = Uri.parse(url);
     if (!await launchUrl(uri)) {
       throw Exception('Could not launch $url');
