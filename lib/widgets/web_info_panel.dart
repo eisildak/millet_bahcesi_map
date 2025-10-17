@@ -119,6 +119,24 @@ class WebInfoPanel extends StatelessWidget {
                       color: Colors.grey,
                     ),
                   ),
+                  SizedBox(height: 12),
+                  Text(
+                    'Danışman',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue,
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    'Öğr.Gör. Gülsüm KEMERLİ',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.black87,
+                    ),
+                  ),
                 ],
               ),
             ),
