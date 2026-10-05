@@ -54,7 +54,7 @@ cd millet_bahcesi_map
 flutter pub get
 
 # JSON serializasyon dosyalarını oluşturun
-flutter packages pub run build_runner build
+flutter pub get
 ```
 
 ### API Key Ayarları
@@ -65,7 +65,7 @@ flutter packages pub run build_runner build
 `lib/config/api_keys.dart` dosyasını oluşturun:
 ```dart
 class ApiKeys {
-  static const String googleMapsApiKey = 'YOUR_ACTUAL_API_KEY_HERE';
+  static const String googleMapsApiKey = 'AIzaSyAMw4PWCXo9PDv0VXCY58l8S3Vzub8h5wo';
 }
 ```
 

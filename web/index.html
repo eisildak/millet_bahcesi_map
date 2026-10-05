@@ -479,10 +479,6 @@
       100% { transform: rotate(360deg); }
     }
     
-    #flutter-target {
-      display: none;
-    }
-    
     /* Responsive Design */
     @media (max-width: 768px) {
       .header-content {
@@ -568,9 +564,6 @@
     <div class="loading-spinner"></div>
     <div class="loading-text">Kayseri Millet Bahçesi Haritası Yükleniyor...</div>
   </div>
-  
-  <!-- Flutter App Container -->
-  <div id="flutter-target"></div>
   
   <!-- Header Section -->
   <header class="header">
@@ -779,24 +772,22 @@
     // Hide loading screen after 3 seconds regardless
     setTimeout(function() {
       document.getElementById('loading').style.display = 'none';
-      document.getElementById('flutter-target').style.display = 'block';
     }, 3000);
 
     // Flutter App Initialization
     window.addEventListener('load', function(ev) {
-      _flutter.loader.load({
-        serviceWorkerSettings: {
+      _flutter.loader.loadEntrypoint({
+        serviceWorker: {
           serviceWorkerVersion: serviceWorkerVersion,
         },
         onEntrypointLoaded: function(engineInitializer) {
           engineInitializer.initializeEngine({
-            hostElement: document.getElementById('flutter-target')
+            hostElement: document.getElementById('flutter-map')
           }).then(function(appRunner) {
             return appRunner.runApp();
           }).then(function() {
             // Flutter app yüklendi, loading'i gizle
             document.getElementById('loading').style.display = 'none';
-            document.getElementById('flutter-target').style.display = 'block';
           });
         }
       });
