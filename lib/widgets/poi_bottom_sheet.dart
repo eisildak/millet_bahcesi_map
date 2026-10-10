@@ -290,13 +290,6 @@ class POIBottomSheet extends StatelessWidget {
 
     // Eğer konum yoksa önce konum al
     if (locationService.currentPosition == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Konum alınıyor...'),
-          duration: Duration(seconds: 2),
-        ),
-      );
-
       await locationService.getCurrentLocation();
     }
 
@@ -317,23 +310,6 @@ class POIBottomSheet extends StatelessWidget {
 
       // Konum takibini başlat
       await locationService.startLocationTracking();
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            '${poi.name} noktasına rota çiziliyor - Konum takibi aktif',
-          ),
-          backgroundColor: Colors.green,
-          duration: const Duration(seconds: 3),
-          action: SnackBarAction(
-            label: 'Durdur',
-            onPressed: () {
-              mapService.stopNavigation();
-              locationService.stopLocationTracking();
-            },
-          ),
-        ),
-      );
     } else {
       // Konum alınamadı, Millet Bahçesi merkezinden başlat
       const defaultLocation = LatLng(
@@ -347,20 +323,6 @@ class POIBottomSheet extends StatelessWidget {
       print('Hedef: ${poi.latitude}, ${poi.longitude}');
 
       await mapService.startNavigation(poi, defaultLocation);
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            '${poi.name} noktasına rota çiziliyor (Millet Bahçesi merkezinden)',
-          ),
-          backgroundColor: Colors.orange,
-          duration: const Duration(seconds: 3),
-          action: SnackBarAction(
-            label: 'Durdur',
-            onPressed: () => mapService.stopNavigation(),
-          ),
-        ),
-      );
     }
   }
 

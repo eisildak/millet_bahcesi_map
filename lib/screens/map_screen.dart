@@ -259,12 +259,12 @@ class _MapScreenState extends State<MapScreen> {
               ),
             ),
 
-          // Navigasyon kontrolleri. right: 88 = sağdaki FAB kolonu (56) +
-          // kenar boşlukları; aksi halde FAB'lar panelin sağını kapatıyor.
+          // Navigasyon kontrolleri (navigasyon sırasında FAB'lar gizli,
+          // panel tam genişlik).
           Positioned(
             bottom: 16,
             left: 16,
-            right: 88,
+            right: 16,
             child: PointerInterceptor(child: const NavigationControls()),
           ),
 
@@ -303,13 +303,14 @@ class _MapScreenState extends State<MapScreen> {
         },
       ),
 
-      // Bir nokta kartı açıkken FAB'ları gizle: Material FAB'ı alt kartın üst
-      // kenarına oturtuyor ve kartın kapatma (X) butonunu kapatıyordu.
+      // Bir nokta kartı açıkken ya da navigasyon sırasında FAB'ları gizle:
+      // Material FAB'ı alt kartın üst kenarına oturtuyor ve kartın kapatma (X)
+      // butonunu / navigasyon panelini kapatıyordu.
       // mainAxisSize.min: aksi halde Column tüm yüksekliği kaplar ve
       // PointerInterceptor sağ kenarda haritanın sürüklenmesini engeller.
       floatingActionButton: Consumer<MapService>(
         builder: (context, mapService, fabs) =>
-            mapService.selectedPoi != null && !mapService.isNavigating
+            mapService.selectedPoi != null || mapService.isNavigating
             ? const SizedBox.shrink()
             : fabs!,
         child: PointerInterceptor(
