@@ -2,6 +2,14 @@
 <html lang="tr">
 <head>
   <base href="$FLUTTER_BASE_HREF">
+  <script>
+    // Tarayıcılar konum iznini yalnızca HTTPS'te verir. erolisildak.online'da
+    // henüz geçerli SSL olmadığından http ile gelenleri sitenin HTTPS kopyasına
+    // (GitHub Pages) yönlendir; aksi halde "Konumum" ve navigasyon çalışmaz.
+    if (location.protocol === 'http:' && /(^|\.)erolisildak\.online$/.test(location.hostname)) {
+      location.replace('https://eisildak.github.io/erol_isildak_webSite/millet-bahcesi/' + location.search + location.hash);
+    }
+  </script>
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -203,6 +211,8 @@
       overflow: hidden;
       height: 70vh;
       min-height: 500px;
+      display: flex;
+      flex-direction: column;
     }
     
     .map-header {
@@ -240,7 +250,8 @@
     
     .map-frame {
       width: 100%;
-      height: calc(100% - 70px);
+      flex: 1;
+      min-height: 0;
       border: none;
       display: block;
     }
@@ -248,16 +259,30 @@
     /* Fullscreen styles */
     .map-container.fullscreen {
       position: fixed;
-      top: 0;
-      left: 0;
+      inset: 0;
       width: 100vw;
       height: 100vh;
+      height: 100dvh; /* iOS Safari adres çubuğu */
+      min-height: 0;
+      margin: 0;
       z-index: 1000;
       border-radius: 0;
     }
-    
-    .map-container.fullscreen .map-frame {
-      height: calc(100vh - 70px);
+
+    body.map-fullscreen {
+      overflow: hidden;
+    }
+
+    /* Google'ın kendi tam ekran düğmesi yalnızca harita katmanını tam ekran
+       yapıyor; uygulamanın düğmeleri, kartları ve navigasyon paneli dışarıda
+       kalıyordu. Tam ekran için sayfadaki "Tam Ekran" düğmesi kullanılır. */
+    .gm-fullscreen-control {
+      display: none !important;
+    }
+
+    .scroll-hint,
+    .mobile-about {
+      display: none;
     }
     
     /* Info Cards */
@@ -492,72 +517,140 @@
       100% { transform: rotate(360deg); }
     }
     
-    /* Responsive Design */
+    /* Responsive Design
+       Telefonda harita ana içeriktir: kısa başlığın hemen altında neredeyse
+       tam ekran açılır; tanıtım, indirme ve özellikler haritanın altına iner. */
     @media (max-width: 768px) {
-      .header-content {
-        text-align: center;
+      body {
+        display: flex;
         flex-direction: column;
-        gap: 20px;
       }
-      
-      .nny-logo img {
-        width: 100px;
-        height: 100px;
-        padding: 12px;
+
+      /* Uygulamanın kendi çubuğu (NNY logosu + başlık) zaten görünüyor;
+         ikinci bir başlık haritadan yer çalıyordu. */
+      .header { display: none; }
+      .map-section { order: 2; }
+      .download-section { order: 3; }
+      .features { order: 4; }
+      .footer { order: 5; }
+
+      .map-section {
+        padding: 0;
+        min-height: 0;
       }
-      
-      .header-text h1 {
-        font-size: 2rem;
-      }
-      
-      .header-text .subtitle {
-        font-size: 1.1rem;
-      }
-      
-      .features-grid {
-        grid-template-columns: 1fr;
-      }
-      
+
+      .map-section > .container { padding: 0; }
+
       .map-container {
-        margin: 0 -20px;
+        margin: 0;
         border-radius: 0;
-        height: 60vh;
+        box-shadow: none;
+        min-height: 360px;
+        /* 44px alt şerit; svh: adres çubuğu açıkken bile sığar */
+        height: calc(100vh - 44px);
+        height: calc(100svh - 44px);
       }
-      
+
+      .map-header { display: none; }
+
+      .scroll-hint {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        height: 44px;
+        background: #2c3e50;
+        color: #fff;
+        font-size: 0.9rem;
+        font-weight: 600;
+        text-decoration: none;
+      }
+
       .info-cards {
-        grid-template-columns: 1fr;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin: 0;
+        padding: 14px;
       }
-      
+
+      .info-card { padding: 12px; border-radius: 10px; }
+      .info-card h4 { font-size: 0.9rem; margin-bottom: 4px; }
+      .info-card p { font-size: 0.8rem; line-height: 1.4; }
+
+      .section-title { font-size: 1.45rem; margin-bottom: 8px; }
+      .section-subtitle { font-size: 0.9rem; margin-bottom: 18px; }
+
+      .download-section { padding: 28px 0; }
+
       .download-grid {
         grid-template-columns: 1fr;
-        gap: 30px;
+        gap: 14px;
+        margin-top: 0;
       }
-      
-      .download-card {
-        padding: 30px 20px;
-      }
-      
+
+      .download-card { padding: 20px 16px; }
+      .download-card:hover { transform: none; }
+
       .platform-icon {
-        width: 60px;
-        height: 60px;
-        font-size: 2rem;
+        width: 48px;
+        height: 48px;
+        margin-bottom: 10px;
       }
-      
-      .qr-placeholder {
-        width: 120px;
-        height: 120px;
+
+      .platform-icon svg { width: 32px; height: 32px; }
+      .download-card h3 { font-size: 1.15rem; margin-bottom: 6px; }
+      .download-card p { font-size: 0.88rem; margin-bottom: 14px; }
+
+      /* Telefonda QR'ı okutacak başka bir ekran yok; doğrudan buton yeterli. */
+      .qr-placeholder { display: none; }
+
+      .features { padding: 28px 0; }
+
+      .mobile-about {
+        display: block;
+        font-size: 0.9rem;
+        line-height: 1.55;
+        color: #3d4b5c;
+        background: #f1f5fb;
+        border-radius: 12px;
+        padding: 14px;
+        margin-bottom: 18px;
       }
-      
+
+      .features-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-bottom: 0;
+      }
+
+      .feature-card {
+        padding: 14px 12px;
+        border-radius: 12px;
+        text-align: left;
+      }
+
+      .feature-card:hover { transform: none; }
+
+      .feature-icon {
+        width: 36px;
+        height: 36px;
+        margin: 0 0 8px;
+        border-radius: 9px;
+        font-size: 1.1rem;
+      }
+
+      .feature-card h3 { font-size: 0.95rem; margin-bottom: 4px; }
+      .feature-card p { font-size: 0.8rem; line-height: 1.4; }
+
+      .footer { padding: 24px 0; }
+
       .footer-content {
         flex-direction: column;
         text-align: center;
-        gap: 20px;
+        gap: 12px;
       }
-      
-      .team-info {
-        text-align: center;
-      }
-      
+
+      .team-info,
       .footer-copyright {
         text-align: center;
       }
@@ -604,6 +697,12 @@
   <!-- Features Section -->
   <section class="features">
     <div class="container">
+      <p class="mobile-about">
+        Nuh Naci Yazgan Üniversitesi tarafından geliştirilen bu uygulama, ziyaretçilere
+        ilgi noktalarını keşfetme ve yürüyerek yol tarifi alma imkânı sunar. Projenin
+        altyapısı farklı açık alanlara hızla uygulanabilecek şekilde geliştirilmiştir;
+        farklı etkinlikler ve destinasyonlar için kolayca uyarlanabilir.
+      </p>
       <h2 class="section-title">Uygulama Özellikleri</h2>
       <p class="section-subtitle">
         Kayseri Millet Bahçesi'nde unutulmaz bir deneyim yaşamanız için geliştirilmiş özellikler
@@ -661,6 +760,7 @@
         </div>
         <div id="flutter-map" class="map-frame"></div>
       </div>
+      <a class="scroll-hint" href="#indir">Uygulamayı indir ve proje hakkında ↓</a>
       
       <div class="info-cards">
         <div class="info-card">
@@ -687,7 +787,7 @@
   </section>
 
   <!-- Download Section -->
-  <section class="download-section">
+  <section class="download-section" id="indir">
     <div class="container">
       <h2 class="section-title">Mobil Uygulamayı İndirin</h2>
       <p class="section-subtitle">
@@ -822,9 +922,11 @@
       
       if (!mapContainer.classList.contains('fullscreen')) {
         mapContainer.classList.add('fullscreen');
+        document.body.classList.add('map-fullscreen');
         btn.innerHTML = '<span>⛶</span> Çık';
       } else {
         mapContainer.classList.remove('fullscreen');
+        document.body.classList.remove('map-fullscreen');
         btn.innerHTML = '<span>⛶</span> Tam Ekran';
       }
     });
@@ -836,6 +938,7 @@
         const btn = document.getElementById('fullscreenBtn');
         if (mapContainer.classList.contains('fullscreen')) {
           mapContainer.classList.remove('fullscreen');
+          document.body.classList.remove('map-fullscreen');
           btn.innerHTML = '<span>⛶</span> Tam Ekran';
         }
       }

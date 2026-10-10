@@ -170,7 +170,31 @@ class _MapScreenState extends State<MapScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Kayseri Millet Bahçesi'),
+        titleSpacing: 12,
+        title: Row(
+          children: [
+            // NNY logosu (web'de telefon görünümünde sayfa başlığı gizlendiği
+            // için logo uygulama çubuğunda gösterilir).
+            ClipOval(
+              child: Container(
+                color: Colors.white,
+                padding: const EdgeInsets.all(2),
+                child: Image.asset(
+                  'assets/icons/nny_logo.png',
+                  width: 34,
+                  height: 34,
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            const Flexible(
+              child: Text(
+                'Kayseri Millet Bahçesi',
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
         actions: [
           IconButton(
             icon: Icon(_showSearch ? Icons.close : Icons.search),
@@ -222,6 +246,10 @@ class _MapScreenState extends State<MapScreen> {
                   buildingsEnabled: true,
                   trafficEnabled: false,
                   mapType: MapType.hybrid, // Satellite + roads view
+                  // Web'de tek parmakla kaydırma/yakınlaştırma. Varsayılan
+                  // ("auto") kaydırılabilir sayfada "haritayı hareket ettirmek
+                  // için iki parmak kullanın" uyarısı gösteriyordu.
+                  webGestureHandling: WebGestureHandling.greedy,
                   onTap: (LatLng position) {
                     // Arama açıksa önce onu kapat
                     if (_showSearch) {
@@ -259,13 +287,19 @@ class _MapScreenState extends State<MapScreen> {
               ),
             ),
 
-          // Navigasyon kontrolleri (navigasyon sırasında FAB'lar gizli,
-          // panel tam genişlik).
+          // Navigasyon kontrolleri (navigasyon sırasında FAB'lar gizli).
+          // Geniş ekranda (web/tablet) panel sola yaslı ve en fazla 480 px.
           Positioned(
             bottom: 16,
             left: 16,
             right: 16,
-            child: PointerInterceptor(child: const NavigationControls()),
+            child: Align(
+              alignment: Alignment.bottomLeft,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 480),
+                child: PointerInterceptor(child: const NavigationControls()),
+              ),
+            ),
           ),
 
           // Loading indicator

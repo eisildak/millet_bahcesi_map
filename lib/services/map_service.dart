@@ -26,6 +26,7 @@ class MapService extends ChangeNotifier {
   static const String customDestinationId = 'custom-destination';
   Marker? _customDestinationMarker;
   Marker? _userLocationMarker;
+  BitmapDescriptor? _userLocationIcon;
 
   // Aktif rota: yön oklarını ve "gidilen / kalan" ayrımını hesaplamak için
   // decode edilmiş rota noktaları saklanır.
@@ -243,11 +244,8 @@ class MapService extends ChangeNotifier {
           // Etkinlik noktaları genel noktaların üstünde görünsün.
           zIndexInt: isEvent ? 600 : 500,
           position: LatLng(poi.latitude, poi.longitude),
-          infoWindow: InfoWindow(
-            title: poi.name,
-            snippet: poi.description,
-            onTap: () => selectPOI(poi),
-          ),
+          // InfoWindow yok: dokununca alttaki nokta kartı açılıyor; balon aynı
+          // bilgiyi tekrar ediyor ve navigasyonda rotanın üstünü kapatıyordu.
           icon: icon,
           onTap: () => selectPOI(poi),
         ),
@@ -585,25 +583,52 @@ class MapService extends ChangeNotifier {
     // Kullanıcı konum marker'ını oluştur
     await _createUserLocationMarker(userLocation);
 
-    // Haritayı kullanıcı konumuna odakla
-    await _focusOnUserLocation(userLocation);
-
+    final target = LatLng(destination.latitude, destination.longitude);
     try {
-      await _getDirections(
-        userLocation,
-        LatLng(destination.latitude, destination.longitude),
-      );
+      await _getDirections(userLocation, target);
     } catch (e) {
       debugPrint('Navigasyon hatası: $e');
 
       // Hata durumunda basit düz çizgi çiz
-      _createStraightLine(
-        userLocation,
-        LatLng(destination.latitude, destination.longitude),
-      );
+      _createStraightLine(userLocation, target);
     }
 
     notifyListeners();
+
+    // Rotanın tamamı görünsün (eskiden kullanıcıya 17 zoom + 45° eğimle
+    // odaklanıyordu; rotanın çoğu ekran dışında / panelin altında kalıyordu).
+    await _fitCameraToRoute(userLocation, target);
+  }
+
+  /// Kamerayı rotaya sığdırır. Alttaki navigasyon paneli rotayı kapatmasın
+  /// diye sınır güneye doğru genişletilir (rota ekranın üst kısmında kalır).
+  Future<void> _fitCameraToRoute(LatLng origin, LatLng destination) async {
+    final controller = _controller;
+    if (controller == null) return;
+    final points = <LatLng>[origin, destination, ..._currentRoutePoints];
+    double minLat = points.first.latitude, maxLat = minLat;
+    double minLng = points.first.longitude, maxLng = minLng;
+    for (final p in points) {
+      minLat = math.min(minLat, p.latitude);
+      maxLat = math.max(maxLat, p.latitude);
+      minLng = math.min(minLng, p.longitude);
+      maxLng = math.max(maxLng, p.longitude);
+    }
+    final double latSpan = math.max(maxLat - minLat, 0.0008);
+    final double lngSpan = math.max(maxLng - minLng, 0.0008);
+    try {
+      await controller.animateCamera(
+        CameraUpdate.newLatLngBounds(
+          LatLngBounds(
+            southwest: LatLng(minLat - latSpan * 0.7, minLng - lngSpan * 0.1),
+            northeast: LatLng(maxLat + latSpan * 0.15, maxLng + lngSpan * 0.1),
+          ),
+          48,
+        ),
+      );
+    } catch (e) {
+      debugPrint('Kamera rotaya sığdırılamadı: $e');
+    }
   }
 
   // Yürüme rotası sırası:
@@ -1264,11 +1289,8 @@ class MapService extends ChangeNotifier {
 
   // Kullanıcı konum marker'ı oluştur
   Future<void> _createUserLocationMarker(LatLng userLocation) async {
-    print(
-      'Kullanıcı konum marker\'ı oluşturuluyor: ${userLocation.latitude}, ${userLocation.longitude}',
-    );
-
-    final icon = await _createUserLocationIcon();
+    // İkon bir kez çizilir; her konum güncellemesinde yeniden üretmeye gerek yok.
+    final icon = _userLocationIcon ??= await _createUserLocationIcon();
 
     _userLocationMarker = Marker(
       markerId: const MarkerId('user_location'),
@@ -1332,10 +1354,24 @@ class MapService extends ChangeNotifier {
     _updateRouteProgress(newLocation);
     _createUserLocationMarker(newLocation).then((_) {
       notifyListeners();
-
-      // Kamerayı kullanıcı konumunda tut
-      _controller?.animateCamera(CameraUpdate.newLatLng(newLocation));
+      _keepUserInView(newLocation);
     });
+  }
+
+  /// Kullanıcı görünen alanın dışına çıktıysa kamerayı ona getirir. Eskiden
+  /// her güncellemede kamera kullanıcıya kilitleniyordu; navigasyon sırasında
+  /// harita kaydırılamıyor / yakınlaştırılamıyordu.
+  Future<void> _keepUserInView(LatLng location) async {
+    final controller = _controller;
+    if (controller == null) return;
+    try {
+      final LatLngBounds visible = await controller.getVisibleRegion();
+      if (!visible.contains(location)) {
+        await controller.animateCamera(CameraUpdate.newLatLng(location));
+      }
+    } catch (_) {
+      // Harita henüz hazır değil; bir sonraki güncellemede tekrar denenir.
+    }
   }
 
   /// Kamerayı etkinlik alanına odaklar (sınır yoksa Millet Bahçesi geneli).
@@ -1343,33 +1379,5 @@ class MapService extends ChangeNotifier {
     _controller?.animateCamera(
       CameraUpdate.newLatLngZoom(currentEvent.center, currentEvent.initialZoom),
     );
-  }
-
-  // Haritayı kullanıcı konumuna odakla
-  Future<void> _focusOnUserLocation(LatLng userLocation) async {
-    if (_controller != null) {
-      print(
-        '🎯 Harita kullanıcı konumuna odaklanıyor: ${userLocation.latitude}, ${userLocation.longitude}',
-      );
-
-      await _controller!.animateCamera(
-        CameraUpdate.newCameraPosition(
-          CameraPosition(
-            target: userLocation,
-            zoom: 17.0, // Kullanıcı konumu için yüksek zoom
-            tilt: 45.0, // Hafif açılı görünüm
-            bearing: 0.0, // Kuzey yönü
-          ),
-        ),
-      );
-
-      // Animasyon tamamlandıktan sonra kısa bir bekleme
-      await Future.delayed(const Duration(milliseconds: 500));
-    }
-  }
-
-  // Kullanıcı konumuna odaklanmak için public fonksiyon
-  Future<void> focusOnUserLocation(LatLng userLocation) async {
-    await _focusOnUserLocation(userLocation);
   }
 }

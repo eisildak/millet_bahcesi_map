@@ -209,11 +209,11 @@ class LocationService extends ChangeNotifier {
     notifyListeners();
 
     try {
-      if (kIsWeb) {
-        await _startWebLocationTracking();
-      } else {
-        await _startMobileLocationTracking();
-      }
+      // Web dahil tüm platformlarda konum akışı (web'de watchPosition)
+      // kullanılır. Web'de eskiden 5 sn'de bir getCurrentLocation çağrılıyordu;
+      // her çağrı isLoading'i açıp haritayı tam ekran yükleniyor katmanıyla
+      // kapatıyordu.
+      await _startStreamTracking();
     } catch (e) {
       print('Konum takibi başlatma hatası: $e');
       _error = 'Konum takibi başlatılamadı: $e';
@@ -233,20 +233,9 @@ class LocationService extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> _startWebLocationTracking() async {
-    // Web'de periyodik konum güncellemesi
-    print('Web için konum takibi başlatılıyor...');
-
-    // İlk konum al
-    await getCurrentLocation();
-
-    // Her 5 saniyede bir konum güncelle
-    _startPeriodicLocationUpdate();
-  }
-
-  Future<void> _startMobileLocationTracking() async {
-    // Mobil'de gerçek zamanlı konum takibi
-    print('Mobil için konum takibi başlatılıyor...');
+  Future<void> _startStreamTracking() async {
+    // Gerçek zamanlı konum takibi
+    print('Konum akışı başlatılıyor...');
 
     // İzin kontrol et
     await _requestLocationPermission();
@@ -272,21 +261,6 @@ class LocationService extends ChangeNotifier {
             notifyListeners();
           },
         );
-  }
-
-  void _startPeriodicLocationUpdate() {
-    if (!kIsWeb || !_isTracking) return;
-
-    Future.delayed(const Duration(seconds: 5), () async {
-      if (!_isTracking) return;
-
-      try {
-        await getCurrentLocation();
-        _startPeriodicLocationUpdate(); // Recursive call for continuous tracking
-      } catch (e) {
-        print('Periyodik konum güncelleme hatası: $e');
-      }
-    });
   }
 
   // Test için varsayılan konum set etme
