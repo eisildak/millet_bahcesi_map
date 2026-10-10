@@ -1,9 +1,121 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../services/location_service.dart';
 import '../services/map_service.dart';
 
 class NavigationControls extends StatelessWidget {
   const NavigationControls({super.key});
+
+  static const Color _brand = Color(0xFF3252a8);
+
+  static String _formatDistance(double meters) {
+    if (meters < 1000) return '${meters.round()} m';
+    return '${(meters / 1000).toStringAsFixed(1)} km';
+  }
+
+  void _stop(BuildContext context, MapService mapService) {
+    mapService.stopNavigation();
+    context.read<LocationService>().stopLocationTracking();
+  }
+
+  Widget _buildProgress(BuildContext context, MapService mapService) {
+    if (mapService.hasArrived) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.green[50],
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.flag, color: Colors.green[700]),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Hedefe ulaştınız',
+                style: TextStyle(
+                  color: Colors.green[800],
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            TextButton(
+              onPressed: () => _stop(context, mapService),
+              child: const Text('Bitir'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final int percent = (mapService.routeProgress * 100).round();
+    final next = mapService.nextStep;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (next != null) ...[
+          Row(
+            children: [
+              Icon(next.icon, color: _brand, size: 28),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  next.isArrival
+                      ? '${_formatDistance(mapService.distanceToNextStepMeters)} sonra hedefinize ulaşırsınız'
+                      : '${_formatDistance(mapService.distanceToNextStepMeters)} sonra ${next.instructionLowerFirst}',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+        ],
+        ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: LinearProgressIndicator(
+            value: mapService.routeProgress,
+            minHeight: 8,
+            backgroundColor: _brand.withValues(alpha: 0.15),
+            valueColor: const AlwaysStoppedAnimation<Color>(_brand),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Text(
+              '%$percent tamamlandı',
+              style: const TextStyle(fontSize: 13, color: Colors.grey),
+            ),
+            const Spacer(),
+            Text(
+              '${_formatDistance(mapService.routeRemainingMeters)} kaldı'
+              ' · ~${mapService.routeRemainingMinutes} dk',
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+            ),
+          ],
+        ),
+        if (mapService.isFallbackRoute) ...[
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Icon(Icons.info_outline, size: 14, color: Colors.orange[700]),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  'Yürüme rotası alınamadı, kuş uçuşu mesafe gösteriliyor',
+                  style: TextStyle(fontSize: 12, color: Colors.orange[800]),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ],
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -35,10 +147,7 @@ class NavigationControls extends StatelessWidget {
                         children: [
                           const Text(
                             'Yürüyerek',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey,
-                            ),
+                            style: TextStyle(fontSize: 14, color: Colors.grey),
                           ),
                           Text(
                             mapService.selectedPoi?.name ?? 'Hedefe',
@@ -51,13 +160,16 @@ class NavigationControls extends StatelessWidget {
                       ),
                     ),
                     TextButton(
-                      onPressed: () {
-                        mapService.stopNavigation();
-                      },
+                      onPressed: () => _stop(context, mapService),
                       child: const Text('Durdur'),
                     ),
                   ],
                 ),
+
+                const SizedBox(height: 12),
+
+                // İlerleme çubuğu + kalan mesafe/süre
+                _buildProgress(context, mapService),
 
                 const SizedBox(height: 12),
 
@@ -105,7 +217,10 @@ class NavigationControls extends StatelessWidget {
     );
   }
 
-  void _showNavigationInstructions(BuildContext context, MapService mapService) {
+  void _showNavigationInstructions(
+    BuildContext context,
+    MapService mapService,
+  ) {
     showModalBottomSheet(
       context: context,
       builder: (context) => Container(
@@ -138,7 +253,14 @@ class NavigationControls extends StatelessWidget {
             const SizedBox(height: 16),
 
             // Yol tarifi adımları (örnek)
-            ..._buildNavigationSteps(context, mapService),
+            // Uzun rotalarda taşmasın diye kaydırılabilir liste.
+            Flexible(
+              child: SingleChildScrollView(
+                child: Column(
+                  children: _buildNavigationSteps(context, mapService),
+                ),
+              ),
+            ),
 
             const SizedBox(height: 20),
 
@@ -164,45 +286,35 @@ class NavigationControls extends StatelessWidget {
     );
   }
 
-  List<Widget> _buildNavigationSteps(BuildContext context, MapService mapService) {
-    // Gerçek uygulamada bu adımlar Google Directions API'den gelecek
-    final steps = [
-      {
-        'instruction': 'Mevcut konumunuzdan başlayın',
-        'distance': '0 m',
-        'icon': Icons.my_location,
-      },
-      {
-        'instruction': 'Ana yoldan güneye doğru yürüyün',
-        'distance': '150 m',
-        'icon': Icons.straight,
-      },
-      {
-        'instruction': 'Sola dönün ve yeşil alana girin',
-        'distance': '75 m',
-        'icon': Icons.turn_left,
-      },
-      {
-        'instruction': '${mapService.selectedPoi?.name ?? 'Hedefiniz'} sağ tarafınızda',
-        'distance': '25 m',
-        'icon': Icons.place,
-      },
-    ];
-
+  List<Widget> _buildNavigationSteps(
+    BuildContext context,
+    MapService mapService,
+  ) {
+    final steps = mapService.routeSteps;
+    if (steps.isEmpty) {
+      return [
+        const Padding(
+          padding: EdgeInsets.symmetric(vertical: 8.0),
+          child: Text('Rota adımları hazırlanıyor...'),
+        ),
+      ];
+    }
+    final next = mapService.nextStep;
     return steps.map((step) {
+      final bool isNext = identical(step, next);
       return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8.0),
+        padding: const EdgeInsets.symmetric(vertical: 6.0),
         child: Row(
           children: [
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: Theme.of(context).primaryColor.withOpacity(0.1),
+                color: isNext ? _brand : _brand.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(
-                step['icon'] as IconData,
-                color: Theme.of(context).primaryColor,
+                step.icon,
+                color: isNext ? Colors.white : _brand,
                 size: 20,
               ),
             ),
@@ -212,16 +324,17 @@ class NavigationControls extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    step['instruction'] as String,
-                    style: const TextStyle(fontSize: 16),
-                  ),
-                  Text(
-                    step['distance'] as String,
+                    step.instruction,
                     style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[600],
+                      fontSize: 16,
+                      fontWeight: isNext ? FontWeight.bold : FontWeight.normal,
                     ),
                   ),
+                  if (!step.isArrival && step.distanceMeters > 0)
+                    Text(
+                      'ardından ${_formatDistance(step.distanceMeters)}',
+                      style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                    ),
                 ],
               ),
             ),

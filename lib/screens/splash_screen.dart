@@ -259,7 +259,7 @@ class _SplashScreenState extends State<SplashScreen>
                   children: [
                     const Center(
                       child: Text(
-                        'Her hakkı saklıdır. © 2025',
+                        'Her hakkı saklıdır. © 2026',
                         style: TextStyle(
                           fontSize: 12,
                           color: Colors.grey,

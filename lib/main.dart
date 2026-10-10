@@ -60,6 +60,20 @@ class KayseriMilletBahcesiApp extends StatelessWidget {
           '/': (context) => const SplashScreen(),
           '/map': (context) => const MapScreen(),
         },
+        // Web'de sayfa /#/map adresinde yenilenince Flutter varsayılan olarak
+        // '/' (Splash) rotasını da yığına ekliyor: AppBar'da geri oku çıkıyor
+        // ve gizli kalan Splash 5 sn sonra tekrar yönlendirme yapıyordu.
+        // Doğrudan /map ile açılırsa yalnızca harita ekranını oluştur.
+        onGenerateInitialRoutes: (String initialRoute) => [
+          MaterialPageRoute<void>(
+            settings: RouteSettings(
+              name: initialRoute == '/map' ? '/map' : '/',
+            ),
+            builder: (_) => initialRoute == '/map'
+                ? const MapScreen()
+                : const SplashScreen(),
+          ),
+        ],
         debugShowCheckedModeBanner: false,
       ),
     );

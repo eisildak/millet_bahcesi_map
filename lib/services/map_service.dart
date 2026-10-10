@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
@@ -6,7 +7,10 @@ import 'package:flutter/services.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:http/http.dart' as http;
 import '../models/point_of_interest.dart';
+import '../models/poi_category.dart';
+import '../models/route_step.dart';
 import '../config/api_keys.dart';
+import '../config/event_config.dart';
 
 class MapService extends ChangeNotifier {
   GoogleMapController? _controller;
@@ -16,12 +20,163 @@ class MapService extends ChangeNotifier {
   List<PointOfInterest> _filteredPois = [];
   bool _isNavigating = false;
   PointOfInterest? _selectedPoi;
+
+  /// Haritada dokunularak seçilen serbest hedef (ör. Google'ın gösterdiği bir
+  /// tuvalet). Kendi POI listemizde olmayan noktalara rota için kullanılır.
+  static const String customDestinationId = 'custom-destination';
+  Marker? _customDestinationMarker;
   Marker? _userLocationMarker;
 
   // Aktif rota: yön oklarını ve "gidilen / kalan" ayrımını hesaplamak için
   // decode edilmiş rota noktaları saklanır.
   List<LatLng> _currentRoutePoints = [];
   Set<Marker> _routeArrowMarkers = {};
+
+  // Navigasyon ilerlemesi: rota toplam uzunluğu, kalan mesafe ve (varsa)
+  // Directions API'nin verdiği toplam süre.
+  double _routeTotalMeters = 0;
+  double _routeRemainingMeters = 0;
+  int? _routeDurationSeconds;
+
+  // Adım adım tarif (OSRM / Google / kuş uçuşu) ve sıradaki adım takibi.
+  List<RouteStep> _routeSteps = [];
+  List<int> _stepRouteIndices = []; // her adımın rota üzerindeki nokta indeksi
+  int _nextStepIndex = 0;
+  double _distanceToNextStep = 0;
+
+  List<RouteStep> get routeSteps => List.unmodifiable(_routeSteps);
+
+  /// Kullanıcının önündeki ilk manevra (yoksa null).
+  RouteStep? get nextStep =>
+      _nextStepIndex < _routeSteps.length ? _routeSteps[_nextStepIndex] : null;
+
+  /// Sıradaki manevraya kalan yürüme mesafesi.
+  double get distanceToNextStepMeters => _distanceToNextStep;
+
+  /// Yürüme hızı tahmini (m/sn) - API süre vermediğinde kalan süre için.
+  static const double _walkingSpeedMps = 1.3;
+
+  /// Hedefe bu mesafeden yakınsa "ulaştınız" sayılır.
+  static const double arrivalThresholdMeters = 20;
+
+  double get routeTotalMeters => _routeTotalMeters;
+  bool get isFallbackRoute => _isFallbackRoute;
+
+  /// Etkinlik alanının rengi. Bilerek kırmızı: mavi wayfinding (rota) ve
+  /// turuncu (kuş uçuşu yedek rota) çizgileriyle karışmasın.
+  static const Color eventAreaColor = Color(0xFFE53935);
+
+  /// Etkinlik alanı: hafif kırmızı dolgu + kırmızı sınır çizgisi.
+  /// Sınır [currentEvent]'ten gelir; tanımlı değilse boş küme döner.
+  late final Set<Polygon> polygons = currentEvent.hasBoundary
+      ? {
+          Polygon(
+            polygonId: const PolygonId('event_area'),
+            points: currentEvent.boundary,
+            fillColor: eventAreaColor.withValues(alpha: 0.12),
+            // Kenar bilerek silik: alanı belirtsin ama rotanın önüne geçmesin.
+            strokeColor: eventAreaColor.withValues(alpha: 0.45),
+            strokeWidth: 2,
+            consumeTapEvents: false,
+            zIndex: 1,
+          ),
+        }
+      : const <Polygon>{};
+
+  /// Alanın içini tarayan ince çapraz çizgiler (hatch). Google Maps poligonları
+  /// desenli dolgu desteklemediği için çizgiler poligona kırpılarak üretilir.
+  late final Set<Polyline> _eventHatchPolylines = _buildHatchPolylines(
+    currentEvent.boundary,
+  );
+
+  static Set<Polyline> _buildHatchPolylines(
+    List<LatLng> boundary, {
+    double spacingMeters = 14,
+  }) {
+    if (boundary.length < 3) return const <Polyline>{};
+
+    // Yerel düzlemsel (metre) koordinatlara çevir.
+    final double lat0 = boundary.first.latitude;
+    final double lng0 = boundary.first.longitude;
+    const double mPerDegLat = 111320;
+    final double mPerDegLng = 111320 * math.cos(lat0 * math.pi / 180);
+    final pts = [
+      for (final p in boundary)
+        (
+          x: (p.longitude - lng0) * mPerDegLng,
+          y: (p.latitude - lat0) * mPerDegLat,
+        ),
+    ];
+    LatLng toLatLng(double x, double y) =>
+        LatLng(lat0 + y / mPerDegLat, lng0 + x / mPerDegLng);
+
+    // 45° çizgiler: x - y = c. c aralığını kapsayacak şekilde tara.
+    double minC = double.infinity, maxC = -double.infinity;
+    for (final p in pts) {
+      minC = math.min(minC, p.x - p.y);
+      maxC = math.max(maxC, p.x - p.y);
+    }
+    final double step = spacingMeters * math.sqrt2;
+
+    final lines = <Polyline>{};
+    int id = 0;
+    for (double c = minC + step / 2; c < maxC; c += step) {
+      // Çizginin poligon kenarlarıyla kesişimlerini topla.
+      final hits = <({double x, double y})>[];
+      for (int i = 0; i < pts.length; i++) {
+        final a = pts[i];
+        final b = pts[(i + 1) % pts.length];
+        final double fa = a.x - a.y - c;
+        final double fb = b.x - b.y - c;
+        // Yarı-açık aralık: köşe noktasından geçen çizgi iki kez sayılmasın.
+        if ((fa < 0) != (fb < 0)) {
+          final double t = fa / (fa - fb);
+          hits.add((x: a.x + t * (b.x - a.x), y: a.y + t * (b.y - a.y)));
+        }
+      }
+      hits.sort((p, q) => p.x.compareTo(q.x));
+      // Kesişimler çift çift alanın içinde kalan parçaları verir.
+      for (int k = 0; k + 1 < hits.length; k += 2) {
+        lines.add(
+          Polyline(
+            polylineId: PolylineId('event_area_hatch_${id++}'),
+            points: [
+              toLatLng(hits[k].x, hits[k].y),
+              toLatLng(hits[k + 1].x, hits[k + 1].y),
+            ],
+            color: eventAreaColor.withValues(alpha: 0.35),
+            width: 1,
+            consumeTapEvents: false,
+            zIndex: 1,
+          ),
+        );
+      }
+    }
+    return lines;
+  }
+
+  double get routeRemainingMeters => _routeRemainingMeters;
+
+  /// 0.0 (başlangıç) - 1.0 (hedef) arası ilerleme.
+  double get routeProgress {
+    if (_routeTotalMeters <= 0) return 0;
+    return (1 - _routeRemainingMeters / _routeTotalMeters).clamp(0.0, 1.0);
+  }
+
+  bool get hasArrived =>
+      _isNavigating &&
+      _routeTotalMeters > 0 &&
+      _routeRemainingMeters <= arrivalThresholdMeters;
+
+  /// Kalan tahmini süre (dakika, yukarı yuvarlanmış).
+  int get routeRemainingMinutes {
+    final double seconds =
+        (_routeDurationSeconds != null && _routeTotalMeters > 0)
+        ? _routeDurationSeconds! * (_routeRemainingMeters / _routeTotalMeters)
+        : _routeRemainingMeters / _walkingSpeedMps;
+    return (seconds / 60).ceil();
+  }
+
   final Map<int, BitmapDescriptor> _arrowIconCache = {};
 
   // Google API Key - Directions API için
@@ -33,7 +188,9 @@ class MapService extends ChangeNotifier {
   // Getters
   GoogleMapController? get controller => _controller;
   Set<Marker> get markers => _getAllMarkers();
-  Set<Polyline> get polylines => _polylines;
+
+  /// Etkinlik alanı tarama çizgileri + rota çizgileri (rota üstte, zIndex ile).
+  Set<Polyline> get polylines => {..._eventHatchPolylines, ..._polylines};
   List<PointOfInterest> get pois => _pois;
   List<PointOfInterest> get filteredPois => _filteredPois;
   bool get isNavigating => _isNavigating;
@@ -45,6 +202,9 @@ class MapService extends ChangeNotifier {
     if (_userLocationMarker != null) {
       allMarkers.add(_userLocationMarker!);
     }
+    if (_customDestinationMarker != null) {
+      allMarkers.add(_customDestinationMarker!);
+    }
     allMarkers.addAll(_routeArrowMarkers);
     return allMarkers;
   }
@@ -54,8 +214,16 @@ class MapService extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Etkinliğe özel noktaların id'leri (kırmızı marker / etkinlik rozeti).
+  late final Set<String> _eventPoiIds = {
+    for (final p in currentEvent.pois) p.id,
+  };
+
+  bool isEventPoi(PointOfInterest poi) => _eventPoiIds.contains(poi.id);
+
   Future<void> initializePOIs() async {
-    _pois = POIData.kayseriMilletBahcesi;
+    // Parkın genel noktaları + etkinliğe özel noktalar birlikte gösterilir.
+    _pois = [...POIData.kayseriMilletBahcesi, ...currentEvent.pois];
     _filteredPois = List.from(_pois);
     // Cache'i temizle ki yeni boyuttaki marker'lar oluşturulsun
     _markerCache.clear();
@@ -67,10 +235,13 @@ class MapService extends ChangeNotifier {
     _markers.clear();
 
     for (PointOfInterest poi in _pois) {
-      final icon = await _getMarkerIcon(poi.category);
+      final bool isEvent = isEventPoi(poi);
+      final icon = await _getMarkerIcon(poi.category, isEvent: isEvent);
       _markers.add(
         Marker(
           markerId: MarkerId(poi.id),
+          // Etkinlik noktaları genel noktaların üstünde görünsün.
+          zIndexInt: isEvent ? 600 : 500,
           position: LatLng(poi.latitude, poi.longitude),
           infoWindow: InfoWindow(
             title: poi.name,
@@ -87,34 +258,26 @@ class MapService extends ChangeNotifier {
   // Custom marker cache
   final Map<String, BitmapDescriptor> _markerCache = {};
 
-  Future<BitmapDescriptor> _getMarkerIcon(String category) async {
-    // Cache'den kontrol et
-    if (_markerCache.containsKey(category)) {
-      return _markerCache[category]!;
+  Future<BitmapDescriptor> _getMarkerIcon(
+    String category, {
+    bool isEvent = false,
+  }) async {
+    final String cacheKey = '${category.toLowerCase()}|$isEvent';
+    if (_markerCache.containsKey(cacheKey)) {
+      return _markerCache[cacheKey]!;
     }
 
-    BitmapDescriptor icon;
-
-    switch (category.toLowerCase()) {
-      case 'kapı':
-        icon = await _createCustomMarker(Icons.login, const Color(0xFF3252a8));
-        break;
-      case 'wc':
-        icon = await _createCustomMarker(Icons.wc, const Color(0xFF3252a8));
-        break;
-      case 'üniversite':
-        icon = await _createUniversityMarker();
-        break;
-      default:
-        icon = await _createCustomMarker(
-          Icons.location_on,
-          const Color(0xFF3252a8),
-        );
-        break;
-    }
+    // Üniversite standı kendi logosuyla; diğerleri kategori ikonu + renk
+    // (genel: mavi, etkinlik: kırmızı) ile çizilir.
+    final BitmapDescriptor icon = category.toLowerCase() == 'üniversite'
+        ? await _createUniversityMarker()
+        : await _createCustomMarker(
+            PoiCategory.icon(category),
+            PoiCategory.color(isEvent: isEvent),
+          );
 
     // Cache'e kaydet
-    _markerCache[category] = icon;
+    _markerCache[cacheKey] = icon;
     return icon;
   }
 
@@ -260,6 +423,7 @@ class MapService extends ChangeNotifier {
 
   void selectPOI(PointOfInterest poi) {
     _selectedPoi = poi;
+    if (poi.id != customDestinationId) _customDestinationMarker = null;
 
     // Haritayı seçili POI'ye odakla
     _controller?.animateCamera(
@@ -269,11 +433,149 @@ class MapService extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Haritada dokunulan noktayı yürüme hedefi olarak seçer. google_maps_flutter
+  /// Google'ın kendi POI'lerine (placeId) tıklamayı dışarı vermediği için,
+  /// kullanıcı ör. bir tuvalet ikonuna dokunduğunda o konumu hedef alırız.
+  Future<void> selectCustomDestination(LatLng position) async {
+    // Navigasyon sürerken dokunuş hedefi değiştirmesin.
+    if (_isNavigating) return;
+    final int token = ++_customSelectionToken;
+    await _setCustomDestination(
+      position: position,
+      name: 'Seçilen nokta',
+      description:
+          'Haritada seçtiğiniz noktaya yürüme rotası oluşturabilirsiniz.',
+      category: 'Hedef',
+    );
+    // Dokunulan yerde Google'da kayıtlı bir yer (WC, kafe...) varsa adını
+    // canlı sorgula; bulunursa kartı ve işareti o yere göre güncelle.
+    unawaited(_resolveGooglePlaceAt(position, token));
+  }
+
+  int _customSelectionToken = 0;
+
+  Future<void> _setCustomDestination({
+    required LatLng position,
+    required String name,
+    required String description,
+    required String category,
+  }) async {
+    final icon = await _getMarkerIcon(category);
+    _customDestinationMarker = Marker(
+      markerId: const MarkerId(customDestinationId),
+      position: position,
+      icon: icon,
+      zIndexInt: 900,
+    );
+    _selectedPoi = PointOfInterest(
+      id: customDestinationId,
+      name: name,
+      description: description,
+      latitude: position.latitude,
+      longitude: position.longitude,
+      category: category,
+    );
+    notifyListeners();
+  }
+
+  // Google Places API (New) - Nearby Search: dokunulan noktaya 30 m içindeki en
+  // yakın yer. Google koşulları gereği sonuç saklanmaz, sadece bu seçimde
+  // kullanılır. Dokunuş başına tek istek (ayda ilk 5000 ücretsiz).
+  Future<void> _resolveGooglePlaceAt(LatLng position, int token) async {
+    try {
+      final response = await http
+          .post(
+            Uri.parse('https://places.googleapis.com/v1/places:searchNearby'),
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Goog-Api-Key': _apiKey,
+              'X-Goog-FieldMask':
+                  'places.displayName,places.location,places.primaryType,'
+                  'places.primaryTypeDisplayName',
+            },
+            body: json.encode({
+              'maxResultCount': 1,
+              'languageCode': 'tr',
+              'rankPreference': 'DISTANCE',
+              'locationRestriction': {
+                'circle': {
+                  'center': {
+                    'latitude': position.latitude,
+                    'longitude': position.longitude,
+                  },
+                  'radius': 30.0,
+                },
+              },
+            }),
+          )
+          .timeout(const Duration(seconds: 8));
+      if (response.statusCode != 200) {
+        debugPrint('Places HTTP ${response.statusCode}: ${response.body}');
+        return;
+      }
+      final places =
+          (json.decode(response.body) as Map<String, dynamic>)['places']
+              as List?;
+      if (places == null || places.isEmpty) {
+        debugPrint('Places: 30 m içinde yer bulunamadı');
+        return;
+      }
+      // Bu arada kullanıcı başka yere dokunduysa ya da navigasyon başladıysa
+      // eski sonucu uygulama.
+      if (token != _customSelectionToken || _isNavigating) {
+        debugPrint('Places: sonuç eski seçime ait, atlandı');
+        return;
+      }
+
+      final place = places.first as Map<String, dynamic>;
+      final String? name = (place['displayName'] as Map?)?['text'] as String?;
+      if (name == null || name.isEmpty) return;
+      final String type = (place['primaryType'] as String?) ?? '';
+      final String typeLabel =
+          ((place['primaryTypeDisplayName'] as Map?)?['text'] as String?) ??
+          'Yer';
+      final loc = place['location'] as Map<String, dynamic>;
+      await _setCustomDestination(
+        position: LatLng(
+          (loc['latitude'] as num).toDouble(),
+          (loc['longitude'] as num).toDouble(),
+        ),
+        name: name,
+        description: '$typeLabel · Google Haritalar',
+        category: _categoryForGoogleType(type, typeLabel),
+      );
+    } catch (e) {
+      debugPrint('Google yer adı alınamadı: $e');
+    }
+  }
+
+  // Google yer türünü kendi kategorilerimize eşler (ikon için).
+  static String _categoryForGoogleType(String type, String typeLabel) {
+    if (type == 'public_bathroom') return 'WC';
+    const food = {
+      'cafe',
+      'cafeteria',
+      'coffee_shop',
+      'bakery',
+      'food',
+      'food_store',
+      'ice_cream_shop',
+      'chocolate_shop',
+      'dessert_shop',
+    };
+    if (food.contains(type) || type.contains('restaurant')) return 'Yemek';
+    if (type == 'store' || type.endsWith('_store')) return 'Stant';
+    return typeLabel;
+  }
+
   Future<void> startNavigation(
     PointOfInterest destination,
     LatLng userLocation,
   ) async {
     _isNavigating = true;
+    _routeDurationSeconds = null;
+    _routeSteps = [];
+    _stepRouteIndices = [];
     _selectedPoi = destination;
 
     print(
@@ -304,95 +606,198 @@ class MapService extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Yürüme rotası sırası:
+  //  1) Google Routes API (WALK) - tüm platformlar (CORS destekli), parkın iç
+  //     yollarını en iyi bilen kaynak; Türkçe adım adım talimat verir.
+  //  2) OSRM "foot" (OpenStreetMap) - Google'a ulaşılamazsa. Not: OSM'de park
+  //     içi yollar eksik olduğundan dolambaçlı rota verebilir.
+  //  3) Son çare: kuş uçuşu çizgi.
   Future<void> _getDirections(LatLng origin, LatLng destination) async {
-    print('🗺️ Google Directions API çağrısı başlatılıyor...');
-    print('📍 Başlangıç: ${origin.latitude}, ${origin.longitude}');
-    print('🎯 Hedef: ${destination.latitude}, ${destination.longitude}');
+    if (await _tryGoogleRoutes(origin, destination)) return;
+    if (await _tryOsrmFootRoute(origin, destination)) return;
+    _createStraightLine(origin, destination);
+  }
 
-    final url = Uri.parse(
-      'https://maps.googleapis.com/maps/api/directions/json?'
-      'origin=${origin.latitude},${origin.longitude}&'
-      'destination=${destination.latitude},${destination.longitude}&'
-      'mode=walking&'
-      'language=tr&'
-      'region=tr&'
-      'units=metric&'
-      'key=$_apiKey',
-    );
-
-    print('🌐 API URL: $url');
-
+  Future<bool> _tryGoogleRoutes(LatLng origin, LatLng destination) async {
     try {
-      final response = await http.get(
-        url,
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-        },
-      );
-
-      print('📡 HTTP Status: ${response.statusCode}');
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        print('✅ API Response Status: ${data['status']}');
-
-        if (data['status'] == 'OK' && data['routes'].isNotEmpty) {
-          final route = data['routes'][0];
-
-          // Route bilgilerini log'la
-          if (route['legs'] != null && route['legs'].isNotEmpty) {
-            final leg = route['legs'][0];
-            print('🚶 Mesafe: ${leg['distance']['text']}');
-            print('⏱️ Süre: ${leg['duration']['text']}');
-            print('📝 Adımlar: ${leg['steps']?.length ?? 0} adım');
-          }
-
-          final polylinePoints = route['overview_polyline']['points'];
-          print(
-            '🛤️ Polyline bulundu (${polylinePoints.length} karakter), yol çiziliyor...',
-          );
-
-          _createPolyline(polylinePoints);
-
-          // Route başarılı olduğunu bildir
-          _showRouteSuccess(route);
-        } else {
-          print('❌ API Hatası: ${data['status']}');
-          if (data['error_message'] != null) {
-            print('📄 Hata Detayı: ${data['error_message']}');
-          }
-
-          // Hata mesajını kullanıcıya göster
-          if (data['status'] == 'ZERO_RESULTS') {
-            print('🚫 Bu nokta arasında yürüme rotası bulunamadı');
-          }
-
-          // API hatası durumunda düz çizgi çiz
-          _createStraightLine(origin, destination);
-        }
-      } else {
-        print('🔴 HTTP Hatası: ${response.statusCode}');
-        print('📄 Response Body: ${response.body}');
-        _createStraightLine(origin, destination);
+      final response = await http
+          .post(
+            Uri.parse(
+              'https://routes.googleapis.com/directions/v2:computeRoutes',
+            ),
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Goog-Api-Key': _apiKey,
+              'X-Goog-FieldMask':
+                  'routes.duration,routes.polyline.encodedPolyline,'
+                  'routes.legs.endLocation,'
+                  'routes.legs.steps.navigationInstruction,'
+                  'routes.legs.steps.distanceMeters,'
+                  'routes.legs.steps.startLocation',
+            },
+            body: json.encode({
+              'origin': {
+                'location': {
+                  'latLng': {
+                    'latitude': origin.latitude,
+                    'longitude': origin.longitude,
+                  },
+                },
+              },
+              'destination': {
+                'location': {
+                  'latLng': {
+                    'latitude': destination.latitude,
+                    'longitude': destination.longitude,
+                  },
+                },
+              },
+              'travelMode': 'WALK',
+              'languageCode': 'tr',
+            }),
+          )
+          .timeout(const Duration(seconds: 10));
+      if (response.statusCode != 200) {
+        debugPrint('Routes HTTP ${response.statusCode}: ${response.body}');
+        return false;
       }
+      final routes =
+          (json.decode(response.body) as Map<String, dynamic>)['routes']
+              as List?;
+      if (routes == null || routes.isEmpty) return false;
+      final route = routes.first as Map<String, dynamic>;
+      final String? encoded =
+          (route['polyline'] as Map?)?['encodedPolyline'] as String?;
+      if (encoded == null) return false;
+      // Süre "818s" biçiminde gelir.
+      _routeDurationSeconds = int.tryParse(
+        ((route['duration'] as String?) ?? '').replaceAll('s', ''),
+      );
+      if (!_createPolyline(encoded)) return false;
+      _setRouteSteps(_parseGoogleRoutesSteps(route));
+      return true;
     } catch (e) {
-      print('💥 Directions API Network Hatası: $e');
-      _createStraightLine(origin, destination);
+      debugPrint('Google Routes rotası alınamadı: $e');
+      return false;
     }
   }
 
-  void _showRouteSuccess(Map<String, dynamic> route) {
-    try {
-      if (route['legs'] != null && route['legs'].isNotEmpty) {
-        final leg = route['legs'][0];
-        final distance = leg['distance']?['text'] ?? 'Bilinmeyen mesafe';
-        final duration = leg['duration']?['text'] ?? 'Bilinmeyen süre';
+  static IconData _iconForGoogleManeuver(String? maneuver) {
+    switch (maneuver) {
+      case 'DEPART':
+        return Icons.directions_walk;
+      case 'TURN_LEFT':
+        return Icons.turn_left;
+      case 'TURN_RIGHT':
+        return Icons.turn_right;
+      case 'TURN_SLIGHT_LEFT':
+        return Icons.turn_slight_left;
+      case 'TURN_SLIGHT_RIGHT':
+        return Icons.turn_slight_right;
+      case 'TURN_SHARP_LEFT':
+        return Icons.turn_sharp_left;
+      case 'TURN_SHARP_RIGHT':
+        return Icons.turn_sharp_right;
+      case 'UTURN_LEFT':
+        return Icons.u_turn_left;
+      case 'UTURN_RIGHT':
+        return Icons.u_turn_right;
+      case 'FORK_LEFT':
+        return Icons.fork_left;
+      case 'FORK_RIGHT':
+        return Icons.fork_right;
+      case 'ROUNDABOUT_LEFT':
+      case 'ROUNDABOUT_RIGHT':
+        return Icons.roundabout_left;
+      default:
+        return Icons.straight;
+    }
+  }
 
-        print('✅ Rota başarıyla oluşturuldu: $distance, $duration');
+  // Google Routes adımları: talimat metni zaten Türkçe gelir.
+  List<RouteStep> _parseGoogleRoutesSteps(Map<String, dynamic> route) {
+    final legs = route['legs'] as List?;
+    if (legs == null || legs.isEmpty) return const [];
+    final leg = legs.first as Map<String, dynamic>;
+    LatLng? latLngOf(Map? loc) {
+      final ll = loc?['latLng'] as Map?;
+      if (ll == null) return null;
+      return LatLng(
+        (ll['latitude'] as num).toDouble(),
+        (ll['longitude'] as num).toDouble(),
+      );
+    }
+
+    final steps = <RouteStep>[];
+    for (final s
+        in ((leg['steps'] as List?) ?? []).cast<Map<String, dynamic>>()) {
+      final nav = s['navigationInstruction'] as Map<String, dynamic>?;
+      final LatLng? start = latLngOf(s['startLocation'] as Map?);
+      if (start == null) continue;
+      // Talimat bazen "Sola dönün\nAradığınız yeri solda göreceksiniz" gibi
+      // iki satır olur; tek satırda birleştiriyoruz.
+      final String text = ((nav?['instructions'] as String?) ?? 'Devam edin')
+          .split('\n')
+          .where((line) => line.trim().isNotEmpty)
+          .join(' · ');
+      steps.add(
+        RouteStep(
+          instruction: text,
+          distanceMeters: ((s['distanceMeters'] as num?) ?? 0).toDouble(),
+          icon: _iconForGoogleManeuver(nav?['maneuver'] as String?),
+          location: start,
+        ),
+      );
+    }
+    final LatLng? end = latLngOf(leg['endLocation'] as Map?);
+    if (end != null) {
+      steps.add(
+        RouteStep(
+          instruction: 'Hedefinize ulaştınız',
+          distanceMeters: 0,
+          icon: Icons.flag,
+          location: end,
+          isArrival: true,
+        ),
+      );
+    }
+    return steps;
+  }
+
+  // FOSSGIS'in herkese açık OSRM yaya yönlendirme sunucusu (anahtar gerekmez,
+  // hafif/ticari olmayan kullanım içindir).
+  static const String _osrmFootBaseUrl =
+      'https://routing.openstreetmap.de/routed-foot/route/v1/foot';
+
+  Future<bool> _tryOsrmFootRoute(LatLng origin, LatLng destination) async {
+    final url = Uri.parse(
+      '$_osrmFootBaseUrl/'
+      '${origin.longitude},${origin.latitude};'
+      '${destination.longitude},${destination.latitude}'
+      '?overview=full&geometries=polyline&steps=true',
+    );
+    try {
+      final response = await http.get(url).timeout(const Duration(seconds: 10));
+      if (response.statusCode != 200) {
+        debugPrint('OSRM HTTP ${response.statusCode}');
+        return false;
       }
+      final data = json.decode(response.body) as Map<String, dynamic>;
+      final routes = data['routes'] as List?;
+      if (data['code'] != 'Ok' || routes == null || routes.isEmpty) {
+        debugPrint('OSRM rota bulunamadı: ${data['code']}');
+        return false;
+      }
+      final route = routes.first as Map<String, dynamic>;
+      _routeDurationSeconds = (route['duration'] as num?)?.round();
+      // OSRM'in "polyline" geometrisi Google ile aynı (precision 5) kodlamayı
+      // kullanır; mevcut çözücü doğrudan çalışır.
+      if (!_createPolyline(route['geometry'] as String)) return false;
+      _setRouteSteps(_parseOsrmSteps(route));
+      return true;
     } catch (e) {
-      print('Route bilgileri parse edilemedi: $e');
+      debugPrint('OSRM yaya rotası alınamadı: $e');
+      return false;
     }
   }
 
@@ -402,17 +807,25 @@ class MapService extends ChangeNotifier {
     );
 
     _currentRoutePoints = [origin, destination];
-    _polylines.clear();
-    _polylines.add(
-      Polyline(
-        polylineId: const PolylineId('fallback_route'),
-        points: _currentRoutePoints,
-        color: Colors.orange, // Turuncu renk (fallback olduğunu göster)
-        width: 4,
-        patterns: [PatternItem.dash(20), PatternItem.gap(10)], // Kesikli çizgi
-        geodesic: true,
+    _isFallbackRoute = true;
+    _routeDurationSeconds = null;
+    _resetRouteProgress();
+    _setRoutePolylines(traveled: const [], remaining: _currentRoutePoints);
+    _setRouteSteps([
+      RouteStep(
+        instruction: 'Hedefe doğru ilerleyin (kuş uçuşu)',
+        distanceMeters: _routeTotalMeters,
+        icon: Icons.near_me,
+        location: origin,
       ),
-    );
+      RouteStep(
+        instruction: 'Hedefinize ulaştınız',
+        distanceMeters: 0,
+        icon: Icons.flag,
+        location: destination,
+        isArrival: true,
+      ),
+    ]);
 
     _buildArrowMarkers(_currentRoutePoints);
 
@@ -420,15 +833,16 @@ class MapService extends ChangeNotifier {
     notifyListeners();
   }
 
-  void _createPolyline(String encodedPolyline) {
+  /// Rotayı çizer; geçerli (en az 2 noktalı) bir polyline değilse `false`.
+  bool _createPolyline(String encodedPolyline) {
     List<LatLng> polylineCoordinates = _decodePolyline(encodedPolyline);
     print(
       '🛤️ Polyline decode edildi: ${polylineCoordinates.length} koordinat noktası',
     );
 
-    if (polylineCoordinates.isEmpty) {
-      print('⚠️ Polyline boş, düz çizgi çiziliyor');
-      return;
+    if (polylineCoordinates.length < 2) {
+      print('⚠️ Polyline boş/yetersiz');
+      return false;
     }
 
     // İlk ve son noktaları log'la
@@ -442,14 +856,17 @@ class MapService extends ChangeNotifier {
     }
 
     _currentRoutePoints = polylineCoordinates;
+    _isFallbackRoute = false;
+    _resetRouteProgress();
     // Henüz yürünmedi: tamamı "kalan rota" olarak canlı renkte çizilir.
     // Kullanıcı hareket ettikçe updateUserLocation -> _updateRouteProgress
     // bu ikiliyi (gidilen/kalan) günceller.
     _setRoutePolylines(traveled: const [], remaining: _currentRoutePoints);
     _buildArrowMarkers(_currentRoutePoints);
 
-    print('✅ Google Maps yürüme rotası çizildi!');
+    print('✅ Yürüme rotası çizildi!');
     notifyListeners();
+    return true;
   }
 
   // Rotayı "gidilen" (soluk) ve "kalan" (canlı mavi) iki parça olarak çizer -
@@ -463,6 +880,7 @@ class MapService extends ChangeNotifier {
       _polylines.add(
         Polyline(
           polylineId: const PolylineId('walking_route_traveled'),
+          zIndex: 2,
           points: traveled,
           color: const Color(0xFF3252a8).withValues(alpha: 0.35),
           width: 6,
@@ -475,38 +893,193 @@ class MapService extends ChangeNotifier {
     }
     if (remaining.length >= 2) {
       _polylines.add(
-        Polyline(
-          polylineId: const PolylineId('walking_route_remaining'),
-          points: remaining,
-          color: const Color(0xFF3252a8),
-          width: 6,
-          geodesic: true,
-          startCap: Cap.roundCap,
-          endCap: Cap.roundCap,
-          jointType: JointType.round,
-        ),
+        _isFallbackRoute
+            // Yürüme rotası alınamadı: kuş uçuşu çizgi, turuncu kesikli
+            // gösterilir ki gerçek bir yol tarifi olmadığı belli olsun.
+            ? Polyline(
+                polylineId: const PolylineId('walking_route_remaining'),
+                zIndex: 3,
+                points: remaining,
+                color: Colors.orange,
+                width: 4,
+                patterns: [PatternItem.dash(20), PatternItem.gap(10)],
+                geodesic: true,
+              )
+            : Polyline(
+                polylineId: const PolylineId('walking_route_remaining'),
+                zIndex: 3,
+                points: remaining,
+                color: const Color(0xFF3252a8),
+                width: 6,
+                geodesic: true,
+                startCap: Cap.roundCap,
+                endCap: Cap.roundCap,
+                jointType: JointType.round,
+              ),
       );
     }
   }
 
-  // Kullanıcının rota üzerindeki en yakın noktasını bulup rotayı
-  // gidilen/kalan olarak yeniden böler. updateUserLocation tarafından çağrılır.
+  bool _isFallbackRoute = false;
+
+  void _resetRouteProgress() {
+    _routeTotalMeters = _pathLength(_currentRoutePoints);
+    _routeRemainingMeters = _routeTotalMeters;
+  }
+
+  double _pathLength(List<LatLng> points) {
+    double total = 0;
+    for (int i = 0; i < points.length - 1; i++) {
+      total += _distanceMeters(points[i], points[i + 1]);
+    }
+    return total;
+  }
+
+  // Kullanıcı konumunu rotanın en yakın segmentine izdüşürür. Sadece en yakın
+  // köşe noktasına bakmak, az noktalı rotalarda (ör. kuş uçuşu yedek rota)
+  // ilerlemeyi hiç ölçemiyordu.
+  ({int segment, LatLng point}) _projectOntoRoute(LatLng p) {
+    final pts = _currentRoutePoints;
+    final double cosLat = math.cos(p.latitude * math.pi / 180);
+    int bestSegment = 0;
+    LatLng bestPoint = pts.first;
+    double bestDistance = double.infinity;
+    for (int i = 0; i < pts.length - 1; i++) {
+      final a = pts[i];
+      final b = pts[i + 1];
+      // Kısa mesafelerde yeterli düzlemsel yaklaşım (boylam cos(enlem) ile ölçeklenir).
+      final double dx = (b.longitude - a.longitude) * cosLat;
+      final double dy = b.latitude - a.latitude;
+      final double len2 = dx * dx + dy * dy;
+      double t = len2 == 0
+          ? 0
+          : (((p.longitude - a.longitude) * cosLat) * dx +
+                    (p.latitude - a.latitude) * dy) /
+                len2;
+      t = t.clamp(0.0, 1.0);
+      final projected = LatLng(
+        a.latitude + (b.latitude - a.latitude) * t,
+        a.longitude + (b.longitude - a.longitude) * t,
+      );
+      final double d = _distanceMeters(p, projected);
+      if (d < bestDistance) {
+        bestDistance = d;
+        bestSegment = i;
+        bestPoint = projected;
+      }
+    }
+    return (segment: bestSegment, point: bestPoint);
+  }
+
+  // Kullanıcının rota üzerindeki konumunu bulup rotayı gidilen/kalan olarak
+  // yeniden böler ve kalan mesafeyi günceller. updateUserLocation çağırır.
   void _updateRouteProgress(LatLng currentLocation) {
     if (_currentRoutePoints.length < 2) return;
 
-    int nearestIndex = 0;
-    double nearestDistance = double.infinity;
+    final projection = _projectOntoRoute(currentLocation);
+    final traveled = [
+      ..._currentRoutePoints.sublist(0, projection.segment + 1),
+      projection.point,
+    ];
+    final remaining = [
+      projection.point,
+      ..._currentRoutePoints.sublist(projection.segment + 1),
+    ];
+    _routeRemainingMeters = _pathLength(remaining);
+    _setRoutePolylines(traveled: traveled, remaining: remaining);
+    _updateNextStep(projection.segment, projection.point);
+  }
+
+  void _setRouteSteps(List<RouteStep> steps) {
+    _routeSteps = steps;
+    // Her adımı rota üzerindeki en yakın noktaya eşle (sıradaki adımı bulmak için).
+    _stepRouteIndices = [
+      for (final step in steps) _nearestRouteIndex(step.location),
+    ];
+    _nextStepIndex = steps.length > 1 ? 1 : 0;
+    _distanceToNextStep = steps.isNotEmpty ? steps.first.distanceMeters : 0;
+    notifyListeners();
+  }
+
+  int _nearestRouteIndex(LatLng p) {
+    int best = 0;
+    double bestD = double.infinity;
     for (int i = 0; i < _currentRoutePoints.length; i++) {
-      final d = _distanceMeters(currentLocation, _currentRoutePoints[i]);
-      if (d < nearestDistance) {
-        nearestDistance = d;
-        nearestIndex = i;
+      final double d = _distanceMeters(p, _currentRoutePoints[i]);
+      if (d < bestD) {
+        bestD = d;
+        best = i;
       }
     }
+    return best;
+  }
 
-    final traveled = _currentRoutePoints.sublist(0, nearestIndex + 1);
-    final remaining = _currentRoutePoints.sublist(nearestIndex);
-    _setRoutePolylines(traveled: traveled, remaining: remaining);
+  // Kullanıcının izdüşümünden sonra gelen ilk manevrayı ve ona kalan mesafeyi bulur.
+  void _updateNextStep(int segment, LatLng projectedPoint) {
+    if (_routeSteps.isEmpty) return;
+    int next = _routeSteps.length - 1; // bulunamazsa varış adımı
+    for (int i = 1; i < _routeSteps.length; i++) {
+      if (_stepRouteIndices[i] > segment) {
+        next = i;
+        break;
+      }
+    }
+    _nextStepIndex = next;
+    final int target = _stepRouteIndices[next];
+    _distanceToNextStep = target <= segment
+        ? 0
+        : _distanceMeters(projectedPoint, _currentRoutePoints[segment + 1]) +
+              _pathLength(_currentRoutePoints.sublist(segment + 1, target + 1));
+  }
+
+  // OSRM adımlarını Türkçe talimatlara çevirir. Patikalarda sık görülen
+  // "isim değişti / düz devam" adımları bir önceki adıma eklenir (gürültü olmasın).
+  List<RouteStep> _parseOsrmSteps(Map<String, dynamic> route) {
+    final legs = route['legs'] as List?;
+    if (legs == null || legs.isEmpty) return const [];
+    final raw = ((legs.first as Map<String, dynamic>)['steps'] as List?) ?? [];
+    final steps = <RouteStep>[];
+    for (final s in raw.cast<Map<String, dynamic>>()) {
+      final m = s['maneuver'] as Map<String, dynamic>;
+      final String type = m['type'] as String? ?? 'turn';
+      final String? modifier = m['modifier'] as String?;
+      final double distance = (s['distance'] as num?)?.toDouble() ?? 0;
+      final bool minor =
+          (type == 'new name' ||
+              type == 'continue' ||
+              type == 'notification') &&
+          (modifier == null || modifier == 'straight');
+      if (minor && steps.isNotEmpty) {
+        final prev = steps.removeLast();
+        steps.add(
+          RouteStep(
+            instruction: prev.instruction,
+            distanceMeters: prev.distanceMeters + distance,
+            icon: prev.icon,
+            location: prev.location,
+            isArrival: prev.isArrival,
+          ),
+        );
+        continue;
+      }
+      final loc = (m['location'] as List).cast<num>(); // [lng, lat]
+      final d = OsrmInstructions.describe(
+        type: type,
+        modifier: modifier,
+        name: s['name'] as String?,
+        exit: (m['exit'] as num?)?.toInt(),
+      );
+      steps.add(
+        RouteStep(
+          instruction: d.text,
+          distanceMeters: distance,
+          icon: d.icon,
+          location: LatLng(loc[1].toDouble(), loc[0].toDouble()),
+          isArrival: d.isArrival,
+        ),
+      );
+    }
+    return steps;
   }
 
   double _distanceMeters(LatLng a, LatLng b) {
@@ -633,7 +1206,10 @@ class MapService extends ChangeNotifier {
         result |= (b & 0x1f) << shift;
         shift += 5;
       } while (b >= 0x20);
-      int dlat = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
+      // NOT: `~x` yerine `-x - 1` (eşdeğer). Web'de (dart2js) bit işlemleri
+      // işaretsiz 32-bit sonuç verdiği için `~` negatif delta yerine ~4 milyar
+      // döndürüyor ve rota noktaları kutuplara kaçıyordu.
+      int dlat = (result & 1) != 0 ? -(result >> 1) - 1 : (result >> 1);
       lat += dlat;
 
       shift = 0;
@@ -643,7 +1219,7 @@ class MapService extends ChangeNotifier {
         result |= (b & 0x1f) << shift;
         shift += 5;
       } while (b >= 0x20);
-      int dlng = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
+      int dlng = (result & 1) != 0 ? -(result >> 1) - 1 : (result >> 1);
       lng += dlng;
 
       polylineCoordinates.add(LatLng(lat / 1E5, lng / 1E5));
@@ -672,7 +1248,16 @@ class MapService extends ChangeNotifier {
     _polylines.clear();
     _currentRoutePoints = [];
     _routeArrowMarkers = {};
+    _routeTotalMeters = 0;
+    _routeRemainingMeters = 0;
+    _routeDurationSeconds = null;
+    _isFallbackRoute = false;
+    _routeSteps = [];
+    _stepRouteIndices = [];
+    _nextStepIndex = 0;
+    _distanceToNextStep = 0;
     _selectedPoi = null;
+    _customDestinationMarker = null;
     _userLocationMarker = null; // Kullanıcı marker'ını temizle
     notifyListeners();
   }
@@ -753,9 +1338,10 @@ class MapService extends ChangeNotifier {
     });
   }
 
+  /// Kamerayı etkinlik alanına odaklar (sınır yoksa Millet Bahçesi geneli).
   void centerOnMilletBahcesi() {
     _controller?.animateCamera(
-      CameraUpdate.newLatLngZoom(kayseriMilletBahcesi, 16.0),
+      CameraUpdate.newLatLngZoom(currentEvent.center, currentEvent.initialZoom),
     );
   }
 

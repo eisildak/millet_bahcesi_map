@@ -33,7 +33,7 @@
       // Flutter web will handle the map creation
       window.googleMapsReady = true;
     }
-    
+
     // Initialize as false
     window.googleMapsReady = false;
   </script>
@@ -54,7 +54,8 @@
     
     /* Header Section */
     .header {
-      background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+      /* Bitiş rengi #3498db yerine biraz koyu: beyaz metin AA (>=4.5:1) sağlasın */
+      background: linear-gradient(135deg, #2c3e50 0%, #2574a9 100%);
       color: white;
       padding: 40px 0;
       box-shadow: 0 4px 20px rgba(0,0,0,0.1);
@@ -113,7 +114,7 @@
     .header-text .description {
       font-size: 1rem;
       font-weight: 400;
-      opacity: 0.8;
+      opacity: 0.95;
       line-height: 1.6;
     }
     
@@ -134,7 +135,7 @@
     .section-subtitle {
       text-align: center;
       font-size: 1.1rem;
-      color: #7f8c8d;
+      color: #596a7a;
       margin-bottom: 50px;
       max-width: 600px;
       margin-left: auto;
@@ -183,7 +184,7 @@
     }
     
     .feature-card p {
-      color: #7f8c8d;
+      color: #596a7a;
       line-height: 1.6;
     }
     
@@ -283,15 +284,27 @@
     }
     
     .info-card p {
-      color: #7f8c8d;
+      color: #596a7a;
       font-size: 0.95rem;
     }
     
     /* Download Section */
     .download-section {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      /* Önceki #667eea -> #764ba2 gradyanında beyaz metin açık uçta 3.7:1'de
+         kalıyordu; koyulaştırılmış tonlarla her noktada AA (>=4.5:1). */
+      background: linear-gradient(135deg, #4c5fd5 0%, #6a3f99 100%);
       padding: 60px 0;
       color: white;
+    }
+
+    /* Genel .section-title (koyu lacivert) ve .section-subtitle (gri)
+       renkleri mor zeminde okunmuyordu. */
+    .download-section .section-title {
+      color: #ffffff;
+    }
+
+    .download-section .section-subtitle {
+      color: rgba(255, 255, 255, 0.92);
     }
     
     .download-grid {
@@ -350,7 +363,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      color: #7f8c8d;
+      color: #596a7a;
       font-size: 0.9rem;
       font-weight: 500;
     }
@@ -389,12 +402,12 @@
     
     .coming-soon {
       font-size: 0.85rem;
-      opacity: 0.7;
+      opacity: 0.92;
     }
-    
+
     .file-info {
       margin-top: 10px;
-      opacity: 0.8;
+      opacity: 0.92;
     }
     
     .file-info small {
@@ -578,8 +591,10 @@
           <h1>Kayseri Millet Bahçesi</h1>
           <div class="subtitle">İnteraktif Harita ve Navigasyon Rehberi</div>
           <div class="description">
-            Nuh Naci Yazgan Üniversitesi tarafından geliştirilen modern Flutter teknolojisi ile 
+            Nuh Naci Yazgan Üniversitesi tarafından geliştirilen modern Flutter teknolojisi ile
             ziyaretçilere ilgi noktalarını keşfetme ve yol tarifi alma imkanı sunar.
+            Projenin altyapısı, farklı açık alanlara hızla uygulanabilecek şekilde geliştirilmiştir;
+            farklı etkinlikler ve destinasyonlar için kolayca uyarlanabilir.
           </div>
         </div>
       </div>
@@ -744,7 +759,7 @@
           </div>
         </div>
         <div class="footer-copyright">
-          <p>&copy; 2025 Nuh Naci Yazgan Üniversitesi</p>
+          <p>&copy; 2026 Nuh Naci Yazgan Üniversitesi</p>
           <p>Tüm hakları saklıdır.</p>
         </div>
       </div>

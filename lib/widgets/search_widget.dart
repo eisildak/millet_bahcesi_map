@@ -6,10 +6,7 @@ import '../models/point_of_interest.dart';
 class SearchWidget extends StatefulWidget {
   final VoidCallback onClose;
 
-  const SearchWidget({
-    super.key,
-    required this.onClose,
-  });
+  const SearchWidget({super.key, required this.onClose});
 
   @override
   State<SearchWidget> createState() => _SearchWidgetState();
@@ -95,23 +92,17 @@ class _SearchWidgetState extends State<SearchWidget> {
                 ),
 
               // Sonuç bulunamadı mesajı
-              if (mapService.filteredPois.isEmpty && _searchController.text.isNotEmpty)
+              if (mapService.filteredPois.isEmpty &&
+                  _searchController.text.isNotEmpty)
                 const Padding(
                   padding: EdgeInsets.all(24.0),
                   child: Column(
                     children: [
-                      Icon(
-                        Icons.search_off,
-                        size: 48,
-                        color: Colors.grey,
-                      ),
+                      Icon(Icons.search_off, size: 48, color: Colors.grey),
                       SizedBox(height: 8),
                       Text(
                         'Sonuç bulunamadı',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.grey,
-                        ),
+                        style: TextStyle(fontSize: 16, color: Colors.grey),
                       ),
                     ],
                   ),
@@ -147,7 +138,11 @@ class _SearchWidgetState extends State<SearchWidget> {
     );
   }
 
-  Widget _buildPOIListItem(BuildContext context, PointOfInterest poi, MapService mapService) {
+  Widget _buildPOIListItem(
+    BuildContext context,
+    PointOfInterest poi,
+    MapService mapService,
+  ) {
     return ListTile(
       leading: CircleAvatar(
         backgroundColor: _getCategoryColor(poi.category),
@@ -174,7 +169,10 @@ class _SearchWidgetState extends State<SearchWidget> {
     );
   }
 
-  List<Widget> _buildCategoryChips(BuildContext context, MapService mapService) {
+  List<Widget> _buildCategoryChips(
+    BuildContext context,
+    MapService mapService,
+  ) {
     final categories = mapService.pois
         .map((poi) => poi.category)
         .toSet()

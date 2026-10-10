@@ -1,4 +1,3 @@
-
 import 'package:json_annotation/json_annotation.dart';
 
 part 'point_of_interest.g.dart';
@@ -134,7 +133,7 @@ class POIData {
       longitude: 35.504575,
       category: 'WC',
     ),
-    
+
     // Giriş Kapıları
     const PointOfInterest(
       id: 'kosk-kisla-kapisi',
@@ -176,12 +175,13 @@ class POIData {
       longitude: 35.504365,
       category: 'Kapı',
     ),
-    
+
     // Üniversite Standı
     const PointOfInterest(
       id: 'nny-universite-standi',
       name: 'Nuh Naci Yazgan Üniversitesi Standı',
-      description: 'Nuh Naci Yazgan Üniversitesi tanıtım standı ve bilgi merkezi',
+      description:
+          'Nuh Naci Yazgan Üniversitesi tanıtım standı ve bilgi merkezi',
       latitude: 38.699125,
       longitude: 35.512795,
       category: 'Üniversite',
