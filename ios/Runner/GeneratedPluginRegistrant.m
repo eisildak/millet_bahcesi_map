@@ -18,10 +18,10 @@
 @import google_maps_flutter_ios;
 #endif
 
-#if __has_include(<location/LocationPlugin.h>)
-#import <location/LocationPlugin.h>
+#if __has_include(<pointer_interceptor_ios/PointerInterceptorIosPlugin.h>)
+#import <pointer_interceptor_ios/PointerInterceptorIosPlugin.h>
 #else
-@import location;
+@import pointer_interceptor_ios;
 #endif
 
 #if __has_include(<shared_preferences_foundation/SharedPreferencesPlugin.h>)
@@ -41,7 +41,7 @@
 + (void)registerWithRegistry:(NSObject<FlutterPluginRegistry>*)registry {
   [GeolocatorPlugin registerWithRegistrar:[registry registrarForPlugin:@"GeolocatorPlugin"]];
   [FLTGoogleMapsPlugin registerWithRegistrar:[registry registrarForPlugin:@"FLTGoogleMapsPlugin"]];
-  [LocationPlugin registerWithRegistrar:[registry registrarForPlugin:@"LocationPlugin"]];
+  [PointerInterceptorIosPlugin registerWithRegistrar:[registry registrarForPlugin:@"PointerInterceptorIosPlugin"]];
   [SharedPreferencesPlugin registerWithRegistrar:[registry registrarForPlugin:@"SharedPreferencesPlugin"]];
   [URLLauncherPlugin registerWithRegistrar:[registry registrarForPlugin:@"URLLauncherPlugin"]];
 }

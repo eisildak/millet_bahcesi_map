@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.example.kayseri_millet_bahcesi_map">
+    package="com.nnyuniversitesi.milletbahcesi">
 
     <!-- Konum izinleri -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />

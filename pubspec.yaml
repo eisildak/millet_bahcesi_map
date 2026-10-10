@@ -15,8 +15,11 @@ dependencies:
   # Harita ve konum servisleri
   google_maps_flutter: ^2.5.0
   google_maps_flutter_web: ^0.5.4+2
-  location: ^5.0.3
   geolocator: ^10.1.0
+  # Web'de haritanın üzerindeki Flutter widget'larının (arama, FAB, bottom sheet)
+  # tıklamaları doğru yakalaması için - google_maps_flutter_web haritayı bir
+  # HtmlElementView içine gömdüğü için bu olmadan tıklamalar haritaya "düşebilir".
+  pointer_interceptor: ^0.10.1
   
   # HTTP istekleri (Directions API için)
   http: ^1.1.0

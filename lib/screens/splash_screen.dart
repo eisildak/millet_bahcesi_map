@@ -8,7 +8,7 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> 
+class _SplashScreenState extends State<SplashScreen>
     with TickerProviderStateMixin {
   late AnimationController _fadeController;
   late AnimationController _scaleController;
@@ -18,36 +18,28 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   void initState() {
     super.initState();
-    
+
     // Fade animasyon controller
     _fadeController = AnimationController(
       duration: const Duration(milliseconds: 1500),
       vsync: this,
     );
-    
-    // Scale animasyon controller  
+
+    // Scale animasyon controller
     _scaleController = AnimationController(
       duration: const Duration(milliseconds: 1200),
       vsync: this,
     );
-    
+
     // Animasyonları tanımla
-    _fadeAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _fadeController,
-      curve: Curves.easeInOut,
-    ));
-    
-    _scaleAnimation = Tween<double>(
-      begin: 0.8,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _scaleController,
-      curve: Curves.elasticOut,
-    ));
-    
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _fadeController, curve: Curves.easeInOut),
+    );
+
+    _scaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
+      CurvedAnimation(parent: _scaleController, curve: Curves.elasticOut),
+    );
+
     // Animasyonları başlat
     _startAnimations();
   }
@@ -57,10 +49,10 @@ class _SplashScreenState extends State<SplashScreen>
     _scaleController.forward();
     await Future.delayed(const Duration(milliseconds: 200));
     _fadeController.forward();
-    
+
     // 5 saniye bekle ve ana ekrana geç
     await Future.delayed(const Duration(milliseconds: 5000));
-    
+
     if (mounted) {
       Navigator.of(context).pushReplacementNamed('/map');
     }
@@ -90,152 +82,173 @@ class _SplashScreenState extends State<SplashScreen>
                     scale: _scaleAnimation.value,
                     child: FadeTransition(
                       opacity: _fadeAnimation,
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          // NNY Üniversitesi Logosu
-                          Center(
-                            child: Container(
-                              width: 200,
-                              height: 200,
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(20),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.1),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 5),
-                                  ),
-                                ],
-                              ),
-                              child: Padding(
-                                padding: const EdgeInsets.all(20),
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(10),
-                                  child: Image.asset(
-                                    'assets/icons/nny_university_logo.png',
-                                    fit: BoxFit.contain,
-                                    errorBuilder: (context, error, stackTrace) {
-                                      // Fallback logo yüklenemezse
-                                      return Image.asset(
-                                        'assets/icons/nny_logo.png',
-                                        fit: BoxFit.contain,
-                                        errorBuilder: (context, error, stackTrace) {
-                                          // Her ikisi de yüklenemezse varsayılan simge
-                                          return Container(
-                                            decoration: BoxDecoration(
-                                              gradient: const LinearGradient(
-                                                colors: [
-                                                  Color(0xFF1e3a5f),
-                                                  Color(0xFF3252a8),
-                                                ],
-                                                begin: Alignment.topLeft,
-                                                end: Alignment.bottomRight,
-                                              ),
-                                              borderRadius: BorderRadius.circular(10),
-                                            ),
-                                            child: const Center(
-                                              child: Text(
-                                                'NNY',
-                                                style: TextStyle(
-                                                  color: Colors.white,
-                                                  fontSize: 32,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                            ),
-                                          );
-                                        },
-                                      );
-                                    },
+                      // FittedBox: içerik (logo + yazılar), dar/kısa pencerelerde
+                      // (ör. kısa yükseklikli masaüstü tarayıcı) dikey taşma
+                      // (RenderFlex overflow) yaşamak yerine orantılı küçülür.
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            // NNY Üniversitesi Logosu
+                            Center(
+                              child: Container(
+                                width: 200,
+                                height: 200,
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(20),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.1),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 5),
+                                    ),
+                                  ],
+                                ),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(20),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(10),
+                                    child: Image.asset(
+                                      'assets/icons/nny_university_logo.png',
+                                      fit: BoxFit.contain,
+                                      errorBuilder: (context, error, stackTrace) {
+                                        // Fallback logo yüklenemezse
+                                        return Image.asset(
+                                          'assets/icons/nny_logo.png',
+                                          fit: BoxFit.contain,
+                                          errorBuilder:
+                                              (context, error, stackTrace) {
+                                                // Her ikisi de yüklenemezse varsayılan simge
+                                                return Container(
+                                                  decoration: BoxDecoration(
+                                                    gradient:
+                                                        const LinearGradient(
+                                                          colors: [
+                                                            Color(0xFF1e3a5f),
+                                                            Color(0xFF3252a8),
+                                                          ],
+                                                          begin:
+                                                              Alignment.topLeft,
+                                                          end: Alignment
+                                                              .bottomRight,
+                                                        ),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          10,
+                                                        ),
+                                                  ),
+                                                  child: const Center(
+                                                    child: Text(
+                                                      'NNY',
+                                                      style: TextStyle(
+                                                        color: Colors.white,
+                                                        fontSize: 32,
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                );
+                                              },
+                                        );
+                                      },
+                                    ),
                                   ),
                                 ),
                               ),
                             ),
-                          ),
-                          
-                          const SizedBox(height: 40),
-                          
-                          // Alt metin
-                          Center(
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 40),
-                              child: Column(
-                                children: [
-                                  const Text(
-                                    'Kayseri Millet Bahçesi',
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      fontSize: 24,
-                                      fontWeight: FontWeight.bold,
-                                      color: Color(0xFF3252a8),
-                                      height: 1.2,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 10),
-                                  const Text(
-                                    'Navigasyon Rehberi',
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w400,
-                                      color: Color(0xFF1e3a5f),
-                                      height: 1.4,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 20),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                    decoration: BoxDecoration(
-                                      gradient: const LinearGradient(
-                                        colors: [
-                                          Color(0xFF3252a8),
-                                          Color(0xFF1e3a5f),
-                                        ],
-                                        begin: Alignment.topLeft,
-                                        end: Alignment.bottomRight,
-                                      ),
-                                      borderRadius: BorderRadius.circular(20),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: const Color(0xFF3252a8).withOpacity(0.3),
-                                          blurRadius: 8,
-                                          offset: const Offset(0, 4),
-                                        ),
-                                      ],
-                                    ),
-                                    child: const Text(
-                                      '✨ Nuh Naci Yazgan Üniversitesi ile\nGeleceğinizi Şekillendirin ✨',
+
+                            const SizedBox(height: 40),
+
+                            // Alt metin
+                            Center(
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 40,
+                                ),
+                                child: Column(
+                                  children: [
+                                    const Text(
+                                      'Kayseri Millet Bahçesi',
                                       textAlign: TextAlign.center,
                                       style: TextStyle(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.white,
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.bold,
+                                        color: Color(0xFF3252a8),
+                                        height: 1.2,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 10),
+                                    const Text(
+                                      'Navigasyon Rehberi',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w400,
+                                        color: Color(0xFF1e3a5f),
                                         height: 1.4,
-                                        letterSpacing: 0.5,
-                                        shadows: [
-                                          Shadow(
-                                            color: Colors.black26,
-                                            offset: Offset(0, 1),
-                                            blurRadius: 2,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 20),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                        vertical: 12,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        gradient: const LinearGradient(
+                                          colors: [
+                                            Color(0xFF3252a8),
+                                            Color(0xFF1e3a5f),
+                                          ],
+                                          begin: Alignment.topLeft,
+                                          end: Alignment.bottomRight,
+                                        ),
+                                        borderRadius: BorderRadius.circular(20),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: const Color(
+                                              0xFF3252a8,
+                                            ).withOpacity(0.3),
+                                            blurRadius: 8,
+                                            offset: const Offset(0, 4),
                                           ),
                                         ],
                                       ),
+                                      child: const Text(
+                                        '✨ Nuh Naci Yazgan Üniversitesi ile\nGeleceğinizi Şekillendirin ✨',
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.white,
+                                          height: 1.4,
+                                          letterSpacing: 0.5,
+                                          shadows: [
+                                            Shadow(
+                                              color: Colors.black26,
+                                              offset: Offset(0, 1),
+                                              blurRadius: 2,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   );
                 },
               ),
             ),
-            
+
             // Alt kısım - Copyright
             Expanded(
               flex: 2,
@@ -324,35 +337,40 @@ class CircularTextPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = size.width / 2 - 20;
-    
+
     // Üst kısım - "NUH NACİ YAZGAN ÜNİVERSİTESİ"
     _drawTextOnCircle(
-      canvas, 
-      'NUH NACİ YAZGAN ÜNİVERSİTESİ', 
-      center, 
-      radius, 
-      -math.pi / 2, 
+      canvas,
+      'NUH NACİ YAZGAN ÜNİVERSİTESİ',
+      center,
+      radius,
+      -math.pi / 2,
       Colors.white70,
       10,
     );
-    
+
     // Alt kısım - "KAYSERİ"
     _drawTextOnCircle(
-      canvas, 
-      'KAYSERİ', 
-      center, 
-      radius, 
-      math.pi / 2, 
+      canvas,
+      'KAYSERİ',
+      center,
+      radius,
+      math.pi / 2,
       Colors.white70,
       12,
     );
   }
 
-  void _drawTextOnCircle(Canvas canvas, String text, Offset center, double radius, 
-      double startAngle, Color color, double fontSize) {
-    final textPainter = TextPainter(
-      textDirection: TextDirection.ltr,
-    );
+  void _drawTextOnCircle(
+    Canvas canvas,
+    String text,
+    Offset center,
+    double radius,
+    double startAngle,
+    Color color,
+    double fontSize,
+  ) {
+    final textPainter = TextPainter(textDirection: TextDirection.ltr);
 
     for (int i = 0; i < text.length; i++) {
       textPainter.text = TextSpan(

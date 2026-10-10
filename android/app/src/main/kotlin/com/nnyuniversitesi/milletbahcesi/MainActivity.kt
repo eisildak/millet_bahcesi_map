@@ -1,4 +1,4 @@
-package com.example.kayseri_millet_bahcesi_map
+package com.nnyuniversitesi.milletbahcesi
 
 import io.flutter.embedding.android.FlutterActivity
 

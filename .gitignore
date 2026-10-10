@@ -33,6 +33,12 @@ migrate_working_dir/
 /build/
 /coverage/
 
+# Gradle local cache - machine-specific, should never be committed.
+# NOT: android/.gradle zaten git'e commit edilmiş durumda; bunu repodan
+# çıkarmak için `git rm -r --cached android/.gradle` çalıştırmanız gerekir.
+.gradle/
+android/.gradle/
+
 # Symbolication related
 app.*.symbols
 
@@ -43,6 +49,13 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Android release signing - must never be committed
+android/key.properties
+android/app/*.jks
+android/app/*.keystore
+*.jks
+*.keystore
 
 # Build artifacts - APK/IPA files (too large for git)
 *.apk
