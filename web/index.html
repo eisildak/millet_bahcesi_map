@@ -707,19 +707,19 @@
           
           <div class="qr-placeholder" id="androidQR">
             <div class="qr-code-container">
-        <img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=https://drhamdikemerli.com/app-release.apk" 
+        <img src="https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=8&data=https%3A%2F%2Feisildak.github.io%2Ferol_isildak_webSite%2Fapp%2Fandroid%2Fnny-map.apk" 
           alt="Android APK QR Kod" style="width: 100%; height: 100%; border-radius: 8px;">
             </div>
           </div>
           
           <a class="download-btn" 
              id="androidDownloadBtn"
-             href="https://drhamdikemerli.com/app-release.apk" 
+             href="https://eisildak.github.io/erol_isildak_webSite/app/android/nny-map.apk" 
              target="_blank" rel="noopener">
-            📥 Android APK İndir (v1.0)
+            📥 Android APK İndir (v1.1.0)
           </a>
           <div class="file-info">
-            <small>📊 Dosya Boyutu: ~25MB | 📱 Android 6.0+</small>
+            <small>📊 Dosya Boyutu: ~55MB | 📱 Android 7.0+</small>
           </div>
         </div>
         
@@ -731,17 +731,24 @@
             </svg>
           </div>
           <h3>iOS IPA</h3>
-          <p>iOS cihazlar için optimize edilmiş uygulama. TestFlight veya enterprise dağıtım ile kurulum yapabilirsiniz.</p>
+          <p>iOS test sürümü (Ad Hoc). QR kodu iPhone kamerasıyla okutun, açılan sayfada Safari ile "Şimdi Yükle"ye dokunun.</p>
           
           <div class="qr-placeholder" id="iosQR">
-            QR Kod
-            <br><small>Yakında Eklenecek</small>
+            <div class="qr-code-container">
+        <img src="https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=8&data=https%3A%2F%2Feisildak.github.io%2Ferol_isildak_webSite%2Finstall.html%3Fapp%3Dnny-map"
+          alt="iOS kurulum QR Kod" style="width: 100%; height: 100%; border-radius: 8px;">
+            </div>
           </div>
           
-          <a href="#" class="download-btn disabled" id="iosDownloadBtn">
-            📥 iOS IPA İndir
+          <a class="download-btn"
+             id="iosDownloadBtn"
+             href="https://eisildak.github.io/erol_isildak_webSite/install.html?app=nny-map"
+             target="_blank" rel="noopener">
+            📥 iOS'a Yükle (v1.1.0)
           </a>
-          <div class="coming-soon">IPA linki yakında eklenecek</div>
+          <div class="file-info">
+            <small>📱 iOS 15.0+ | Yalnızca geliştirici hesabına kayıtlı iPhone'lar</small>
+          </div>
         </div>
       </div>
     </div>
@@ -770,7 +777,7 @@
     // APK Download Function
     function downloadAPK() {
       // APK dosyasının doğrudan linkini buraya koyun
-  const apkUrl = 'https://drhamdikemerli.com/app-release.apk'; // Gerçek APK indirme linki
+      const apkUrl = 'https://eisildak.github.io/erol_isildak_webSite/app/android/nny-map.apk';
       
       // Alternatif olarak external link
       // const apkUrl = 'https://your-direct-download-link.com/app-release.apk';
