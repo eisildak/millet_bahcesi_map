@@ -26,7 +26,11 @@ class MapService extends ChangeNotifier {
   static const String customDestinationId = 'custom-destination';
   Marker? _customDestinationMarker;
   Marker? _userLocationMarker;
-  BitmapDescriptor? _userLocationIcon;
+  // Mavi noktanın "kalp ritmi" kareleri ve animasyon durumu.
+  List<BitmapDescriptor>? _userPulseFrames;
+  Timer? _userPulseTimer;
+  int _userPulseFrame = 0;
+  LatLng? _userLocation;
 
   // Aktif rota: yön oklarını ve "gidilen / kalan" ayrımını hesaplamak için
   // decode edilmiş rota noktaları saklanır.
@@ -1283,78 +1287,131 @@ class MapService extends ChangeNotifier {
     _distanceToNextStep = 0;
     _selectedPoi = null;
     _customDestinationMarker = null;
-    _userLocationMarker = null; // Kullanıcı marker'ını temizle
+    // Kullanıcı konum noktası (mavi nokta) navigasyon bitince de kalır.
     notifyListeners();
   }
 
   // Kullanıcı konum marker'ı oluştur
   Future<void> _createUserLocationMarker(LatLng userLocation) async {
-    // İkon bir kez çizilir; her konum güncellemesinde yeniden üretmeye gerek yok.
-    final icon = _userLocationIcon ??= await _createUserLocationIcon();
+    // Kareler bir kez çizilir; her konum güncellemesinde yeniden üretilmez.
+    _userPulseFrames ??= await _createUserPulseFrames();
+    _userLocation = userLocation;
+    _buildUserMarker();
+    _startUserPulse();
+  }
 
+  void _buildUserMarker() {
+    final frames = _userPulseFrames;
+    final location = _userLocation;
+    if (frames == null || location == null) return;
     _userLocationMarker = Marker(
       markerId: const MarkerId('user_location'),
-      position: userLocation,
-      icon: icon,
-      infoWindow: const InfoWindow(
-        title: 'Konumunuz',
-        snippet: 'Mevcut konumunuz',
-      ),
-      zIndex: 1000, // En üstte görünsün
+      position: location,
+      icon: frames[_userPulseFrame % frames.length],
+      // Nokta, konumun tam üstünde ortalansın (varsayılan alt-orta).
+      anchor: const Offset(0.5, 0.5),
+      zIndexInt: 1000, // En üstte görünsün
     );
   }
 
-  // Kullanıcı konum icon'u oluştur
-  Future<BitmapDescriptor> _createUserLocationIcon() async {
+  /// Hafif "kalp ritmi": noktanın etrafında soluk bir halka büyüyüp kaybolur,
+  /// ardından kısa bir duraklama (~1,7 sn'lik döngü).
+  void _startUserPulse() {
+    if (_userPulseTimer != null) return;
+    _userPulseTimer = Timer.periodic(const Duration(milliseconds: 120), (_) {
+      if (_userLocation == null) return;
+      _userPulseFrame = (_userPulseFrame + 1) % _userPulseFrames!.length;
+      _buildUserMarker();
+      notifyListeners();
+    });
+  }
+
+  @override
+  void dispose() {
+    _userPulseTimer?.cancel();
+    super.dispose();
+  }
+
+  static const int _pulseGrowFrames = 10;
+  static const int _pulsePauseFrames = 4;
+
+  Future<List<BitmapDescriptor>> _createUserPulseFrames() async {
+    final frames = <BitmapDescriptor>[];
+    for (int i = 0; i < _pulseGrowFrames + _pulsePauseFrames; i++) {
+      // Duraklama karelerinde halka yok (t = null).
+      final double? t = i < _pulseGrowFrames ? i / (_pulseGrowFrames - 1) : null;
+      frames.add(await _createUserLocationIcon(t));
+    }
+    return frames;
+  }
+
+  // Kullanıcı konum icon'u oluştur. [pulse]: 0..1 halka ilerlemesi
+  // (null = halka yok).
+  Future<BitmapDescriptor> _createUserLocationIcon(double? pulse) async {
     final pictureRecorder = ui.PictureRecorder();
     final canvas = Canvas(pictureRecorder);
 
-    // Dış çember (beyaz border)
-    final outerPaint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.fill;
-
-    // İç çember (mavi)
-    final innerPaint = Paint()
-      ..color = const Color(0xFF3252a8)
-      ..style = PaintingStyle.fill;
-
-    // Pulse efekti için büyük çember (şeffaf)
-    final pulsePaint = Paint()
-      ..color = const Color(0xFF3252a8).withOpacity(0.3)
-      ..style = PaintingStyle.fill;
-
-    const double size = 40.0;
+    // 3x çözünürlükte çizilip 44x44 mantıksal piksel olarak gösterilir:
+    // fromBytes ölçeklemediği için Android'de nokta çok küçük çıkıyordu.
+    const double logicalSize = 44.0;
+    const double scale = 3.0;
+    const double size = logicalSize * scale;
     const double center = size / 2;
+    const Color brand = Color(0xFF3252a8);
 
-    // Pulse çember
-    canvas.drawCircle(const Offset(center, center), 18, pulsePaint);
+    // Sabit, soluk zemin halesi
+    canvas.drawCircle(
+      const Offset(center, center),
+      14 * scale,
+      Paint()..color = brand.withValues(alpha: 0.18),
+    );
 
-    // Dış çember (beyaz border)
-    canvas.drawCircle(const Offset(center, center), 12, outerPaint);
+    // Kalp ritmi halkası: 12 -> 21 px büyür, opaklık 0.5 -> 0 söner.
+    if (pulse != null) {
+      final double eased = 1 - math.pow(1 - pulse, 2).toDouble();
+      canvas.drawCircle(
+        const Offset(center, center),
+        (12 + 9 * eased) * scale,
+        Paint()
+          ..color = brand.withValues(alpha: 0.5 * (1 - pulse))
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.5 * scale,
+      );
+    }
 
-    // İç çember (mavi)
-    canvas.drawCircle(const Offset(center, center), 8, innerPaint);
+    // Beyaz kenar + mavi nokta
+    canvas.drawCircle(
+      const Offset(center, center),
+      10 * scale,
+      Paint()..color = Colors.white,
+    );
+    canvas.drawCircle(
+      const Offset(center, center),
+      7 * scale,
+      Paint()..color = brand,
+    );
 
     final picture = pictureRecorder.endRecording();
     final img = await picture.toImage(size.toInt(), size.toInt());
     final byteData = await img.toByteData(format: ui.ImageByteFormat.png);
 
-    return BitmapDescriptor.fromBytes(byteData!.buffer.asUint8List());
+    return BitmapDescriptor.bytes(
+      byteData!.buffer.asUint8List(),
+      width: logicalSize,
+      height: logicalSize,
+    );
   }
 
-  // Kullanıcı konumunu güncelle (takip sırasında)
+  /// Kullanıcının gerçek konumunu haritada mavi nokta olarak gösterir
+  /// (Android, iOS ve web'de aynı). Navigasyon sırasında rota ilerlemesini de
+  /// günceller. Haritanın kendi "my location" katmanı kullanılmıyor: web'de
+  /// desteklenmiyor, Android'de izin harita açıldıktan sonra verilirse
+  /// görünmüyordu.
   void updateUserLocation(LatLng newLocation) {
-    if (!_isNavigating) return;
-
-    print(
-      'Kullanıcı konumu güncelleniyor: ${newLocation.latitude}, ${newLocation.longitude}',
-    );
-
-    _updateRouteProgress(newLocation);
+    if (_isNavigating) _updateRouteProgress(newLocation);
     _createUserLocationMarker(newLocation).then((_) {
       notifyListeners();
-      _keepUserInView(newLocation);
+      if (_isNavigating) _keepUserInView(newLocation);
     });
   }
 

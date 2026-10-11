@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../services/location_service.dart';
 import '../services/map_service.dart';
 
 class NavigationControls extends StatelessWidget {
@@ -13,9 +12,9 @@ class NavigationControls extends StatelessWidget {
     return '${(meters / 1000).toStringAsFixed(1)} km';
   }
 
+  // Konum takibi durdurulmaz: navigasyon bitince de mavi nokta canlı kalır.
   void _stop(BuildContext context, MapService mapService) {
     mapService.stopNavigation();
-    context.read<LocationService>().stopLocationTracking();
   }
 
   Widget _buildProgress(BuildContext context, MapService mapService) {

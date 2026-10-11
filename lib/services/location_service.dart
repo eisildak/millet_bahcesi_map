@@ -7,16 +7,30 @@ class LocationService extends ChangeNotifier {
   bool _isLoading = false;
   String? _error;
   bool _isTracking = false;
+  bool _isApproximate = false;
   StreamSubscription<geolocator.Position>? _positionStream;
 
   geolocator.Position? get currentPosition => _currentPosition;
+
+  /// Konum gerçek değil (web'de izin/zaman aşımı nedeniyle varsayılan merkez
+  /// kullanılıyor). Bu durumda haritada "konumum" noktası gösterilmez.
+  bool get isApproximate => _isApproximate;
+
+  /// Haritada mavi nokta olarak gösterilebilecek gerçek konum var mı?
+  bool get hasRealPosition => _currentPosition != null && !_isApproximate;
   bool get isLoading => _isLoading;
   String? get error => _error;
   bool get isTracking => _isTracking;
 
   Future<void> getCurrentLocation() async {
+    // Yeni istek başarısız olursa son gerçek konum korunur (mavi nokta ve
+    // navigasyon varsayılan merkeze atlamasın).
+    final geolocator.Position? lastReal = hasRealPosition
+        ? _currentPosition
+        : null;
     _isLoading = true;
     _error = null;
+    _isApproximate = false;
     notifyListeners();
 
     try {
@@ -43,6 +57,7 @@ class LocationService extends ChangeNotifier {
           altitudeAccuracy: 0.0,
           headingAccuracy: 0.0,
         );
+        _isApproximate = true;
         _error =
             'Web tarayıcısında konum alınamadı, varsayılan konum gösteriliyor';
         print('Web için varsayılan konum kullanıldı');
@@ -61,6 +76,11 @@ class LocationService extends ChangeNotifier {
           print('Son konum da alınamadı: $lastPositionError');
         }
       }
+    }
+
+    if (lastReal != null && (_isApproximate || _currentPosition == null)) {
+      _currentPosition = lastReal;
+      _isApproximate = false;
     }
 
     _isLoading = false;
@@ -85,6 +105,7 @@ class LocationService extends ChangeNotifier {
       print('Web konum alma hatası: $e');
 
       // Varsayılan konumu kullan ve kullanıcıya bildirme
+      _isApproximate = true;
       _currentPosition = geolocator.Position(
         latitude: 38.704200, // Kayseri Millet Bahçesi doğru koordinat
         longitude: 35.509500,
@@ -250,8 +271,8 @@ class LocationService extends ChangeNotifier {
           locationSettings: locationSettings,
         ).listen(
           (geolocator.Position position) {
-            print('Yeni konum: ${position.latitude}, ${position.longitude}');
             _currentPosition = position;
+            _isApproximate = false;
             _error = null;
             notifyListeners();
           },

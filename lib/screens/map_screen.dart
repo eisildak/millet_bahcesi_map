@@ -42,18 +42,18 @@ class _MapScreenState extends State<MapScreen> {
     final mapService = Provider.of<MapService>(context, listen: false);
 
     // LocationService'i dinle ve konum değişikliklerini MapService'e ilet
+    // Gerçek bir konum geldikçe haritadaki mavi noktayı (ve navigasyondaysa
+    // rota ilerlemesini) güncelle.
+    LatLng? lastShown;
     locationService.addListener(() {
-      if (locationService.isTracking &&
-          locationService.currentPosition != null &&
-          mapService.isNavigating) {
-        final newLocation = LatLng(
-          locationService.currentPosition!.latitude,
-          locationService.currentPosition!.longitude,
-        );
-
-        // MapService'de kullanıcı konumunu güncelle
-        mapService.updateUserLocation(newLocation);
-      }
+      if (!locationService.hasRealPosition) return;
+      final newLocation = LatLng(
+        locationService.currentPosition!.latitude,
+        locationService.currentPosition!.longitude,
+      );
+      if (newLocation == lastShown) return;
+      lastShown = newLocation;
+      mapService.updateUserLocation(newLocation);
     });
   }
 
@@ -78,8 +78,10 @@ class _MapScreenState extends State<MapScreen> {
       await locationService.getCurrentLocation();
 
       if (locationService.currentPosition != null) {
-        // Konum başarıyla alındı
-        print('Konum başarıyla alındı: ${locationService.currentPosition}');
+        // Konum başarıyla alındı; mavi nokta canlı kalsın diye takibe başla.
+        if (locationService.hasRealPosition) {
+          locationService.startLocationTracking();
+        }
         return;
       }
     } catch (e) {
@@ -119,6 +121,9 @@ class _MapScreenState extends State<MapScreen> {
 
                   if (locationService.currentPosition != null) {
                     // Konum alındı, haritayı güncelle
+                    if (locationService.hasRealPosition) {
+                      locationService.startLocationTracking();
+                    }
                     _mapController.animateCamera(
                       CameraUpdate.newLatLngZoom(
                         LatLng(
@@ -156,6 +161,68 @@ class _MapScreenState extends State<MapScreen> {
         },
       );
     }
+  }
+
+  /// Konumu alır, haritayı ona götürür ve mavi noktanın canlı kalması için
+  /// konum takibini başlatır. Gerçek konum yoksa (izin yok, web'de zaman
+  /// aşımı) etkinlik alanına gider ve kullanıcıyı bilgilendirir.
+  Future<void> _goToMyLocation() async {
+    final locationService = context.read<LocationService>();
+    // Takip zaten canlı konum veriyorsa yeni bir tek seferlik istek atma
+    // (web'de takip açıkken ikinci istek reddedilebiliyor); doğrudan git.
+    if (!(locationService.isTracking && locationService.hasRealPosition)) {
+      await locationService.getCurrentLocation();
+    }
+    if (!mounted) return;
+
+    if (locationService.hasRealPosition) {
+      final position = locationService.currentPosition!;
+      locationService.startLocationTracking();
+      _mapController.animateCamera(
+        CameraUpdate.newLatLngZoom(
+          LatLng(position.latitude, position.longitude),
+          17.0,
+        ),
+      );
+      return;
+    }
+
+    _mapController.animateCamera(
+      CameraUpdate.newLatLngZoom(currentEvent.center, currentEvent.initialZoom),
+    );
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Konumunuz alınamadı. Tarayıcı / telefon ayarlarından konum iznini açın.',
+        ),
+        duration: Duration(seconds: 4),
+      ),
+    );
+  }
+
+  /// FAB'ların altındaki küçük açıklama (uydu görüntüsü üstünde okunsun diye
+  /// yarı saydam koyu zemin).
+  static Widget _fabLabel(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.6),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Text(
+          text,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 10.5,
+            height: 1.15,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
   }
 
   void _onMapCreated(GoogleMapController controller) {
@@ -206,13 +273,7 @@ class _MapScreenState extends State<MapScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.my_location),
-            onPressed: () {
-              final locationService = Provider.of<LocationService>(
-                context,
-                listen: false,
-              );
-              locationService.getCurrentLocation();
-            },
+            onPressed: _goToMyLocation,
           ),
         ],
       ),
@@ -239,7 +300,9 @@ class _MapScreenState extends State<MapScreen> {
                   markers: mapService.markers,
                   polylines: mapService.polylines,
                   polygons: mapService.polygons,
-                  myLocationEnabled: true,
+                  // Konum noktası MapService'te marker olarak çiziliyor (üç
+                  // platformda aynı görünsün; web'de bu katman yok).
+                  myLocationEnabled: false,
                   myLocationButtonEnabled: false,
                   zoomControlsEnabled: false,
                   mapToolbarEnabled: false,
@@ -365,7 +428,8 @@ class _MapScreenState extends State<MapScreen> {
                 backgroundColor: Theme.of(context).primaryColor,
                 child: const Icon(Icons.park, color: Colors.white),
               ),
-              const SizedBox(height: 16),
+              _fabLabel('Etkinlik\nAlanı'),
+              const SizedBox(height: 12),
 
               // Konum butonu
               Consumer<LocationService>(
@@ -374,58 +438,8 @@ class _MapScreenState extends State<MapScreen> {
                     heroTag: "location_fab",
                     onPressed: locationService.isLoading
                         ? null
-                        : () async {
-                            await locationService.getCurrentLocation();
-
-                            if (locationService.currentPosition != null) {
-                              print(
-                                'Konuma gidiliyor: ${locationService.currentPosition!.latitude}, ${locationService.currentPosition!.longitude}',
-                              );
-                              _mapController.animateCamera(
-                                CameraUpdate.newLatLngZoom(
-                                  LatLng(
-                                    locationService.currentPosition!.latitude,
-                                    locationService.currentPosition!.longitude,
-                                  ),
-                                  17.0,
-                                ),
-                              );
-
-                              // Başarılı mesaj göster
-                              if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      locationService.error != null
-                                          ? 'Varsayılan konum gösteriliyor'
-                                          : 'Mevcut konumunuz gösteriliyor',
-                                    ),
-                                    duration: const Duration(seconds: 2),
-                                  ),
-                                );
-                              }
-                            } else {
-                              // Hata durumunda Millet Bahçesi'ne git
-                              _mapController.animateCamera(
-                                CameraUpdate.newLatLngZoom(
-                                  currentEvent.center,
-                                  currentEvent.initialZoom,
-                                ),
-                              );
-
-                              if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      'Konum alınamadı, Millet Bahçesi gösteriliyor',
-                                    ),
-                                    duration: Duration(seconds: 2),
-                                  ),
-                                );
-                              }
-                            }
-                          },
-                    backgroundColor: locationService.currentPosition != null
+                        : _goToMyLocation,
+                    backgroundColor: locationService.hasRealPosition
                         ? const Color(0xFF3252a8)
                         : Colors.grey[400],
                     child: locationService.isLoading
@@ -443,6 +457,7 @@ class _MapScreenState extends State<MapScreen> {
                   );
                 },
               ),
+              _fabLabel('Konumum'),
             ],
           ),
         ),
