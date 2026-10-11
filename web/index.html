@@ -916,33 +916,27 @@
     });
     
     // Fullscreen functionality
-    document.getElementById('fullscreenBtn').addEventListener('click', function() {
+    function setFullscreen(on) {
       const mapContainer = document.getElementById('mapContainer');
-      const btn = this;
-      
-      if (!mapContainer.classList.contains('fullscreen')) {
-        mapContainer.classList.add('fullscreen');
-        document.body.classList.add('map-fullscreen');
-        btn.innerHTML = '<span>⛶</span> Çık';
-      } else {
-        mapContainer.classList.remove('fullscreen');
-        document.body.classList.remove('map-fullscreen');
-        btn.innerHTML = '<span>⛶</span> Tam Ekran';
-      }
+      const btn = document.getElementById('fullscreenBtn');
+      mapContainer.classList.toggle('fullscreen', on);
+      document.body.classList.toggle('map-fullscreen', on);
+      btn.innerHTML = on ? '<span>⛶</span> Çık' : '<span>⛶</span> Tam Ekran';
+    }
+
+    document.getElementById('fullscreenBtn').addEventListener('click', function() {
+      setFullscreen(!document.getElementById('mapContainer').classList.contains('fullscreen'));
     });
-    
+
     // ESC key to exit fullscreen
     document.addEventListener('keydown', function(e) {
-      if (e.key === 'Escape') {
-        const mapContainer = document.getElementById('mapContainer');
-        const btn = document.getElementById('fullscreenBtn');
-        if (mapContainer.classList.contains('fullscreen')) {
-          mapContainer.classList.remove('fullscreen');
-          document.body.classList.remove('map-fullscreen');
-          btn.innerHTML = '<span>⛶</span> Tam Ekran';
-        }
-      }
+      if (e.key === 'Escape') setFullscreen(false);
     });
+
+    // ?fs=1 ile açılırsa (posterdeki web QR'ı) harita doğrudan tam ekran gelir.
+    if (new URLSearchParams(location.search).has('fs')) {
+      setFullscreen(true);
+    }
   </script>
 </body>
 </html>
