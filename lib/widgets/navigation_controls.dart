@@ -12,6 +12,27 @@ class NavigationControls extends StatelessWidget {
     return '${(meters / 1000).toStringAsFixed(1)} km';
   }
 
+  /// Navigasyonu sonlandıran düğme (Durdur / Bitir): belirgin olsun diye
+  /// kırmızı çerçeveli.
+  Widget _endButton(
+    BuildContext context,
+    MapService mapService, {
+    required String label,
+    required IconData icon,
+  }) {
+    return OutlinedButton.icon(
+      onPressed: () => _stop(context, mapService),
+      icon: Icon(icon, size: 18),
+      label: Text(label),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: Colors.red[700],
+        backgroundColor: Colors.white,
+        side: BorderSide(color: Colors.red[700]!, width: 1.5),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+    );
+  }
+
   // Konum takibi durdurulmaz: navigasyon bitince de mavi nokta canlı kalır.
   void _stop(BuildContext context, MapService mapService) {
     mapService.stopNavigation();
@@ -39,9 +60,11 @@ class NavigationControls extends StatelessWidget {
                 ),
               ),
             ),
-            TextButton(
-              onPressed: () => _stop(context, mapService),
-              child: const Text('Bitir'),
+            _endButton(
+              context,
+              mapService,
+              label: 'Bitir',
+              icon: Icons.check_circle_outline,
             ),
           ],
         ),
@@ -158,10 +181,14 @@ class NavigationControls extends StatelessWidget {
                         ],
                       ),
                     ),
-                    TextButton(
-                      onPressed: () => _stop(context, mapService),
-                      child: const Text('Durdur'),
-                    ),
+                    // Hedefe varınca yalnızca alttaki "Bitir" kalır.
+                    if (!mapService.hasArrived)
+                      _endButton(
+                        context,
+                        mapService,
+                        label: 'Durdur',
+                        icon: Icons.stop_circle_outlined,
+                      ),
                   ],
                 ),
 

@@ -31,6 +31,7 @@ class MapService extends ChangeNotifier {
   Timer? _userPulseTimer;
   int _userPulseFrame = 0;
   LatLng? _userLocation;
+  DateTime? _ignoreMapTapsUntil;
 
   // Aktif rota: yön oklarını ve "gidilen / kalan" ayrımını hesaplamak için
   // decode edilmiş rota noktaları saklanır.
@@ -441,6 +442,10 @@ class MapService extends ChangeNotifier {
   Future<void> selectCustomDestination(LatLng position) async {
     // Navigasyon sürerken dokunuş hedefi değiştirmesin.
     if (_isNavigating) return;
+    // Durdur/Bitir'e basınca panel kapanır ve aynı dokunuş haritaya düşüp
+    // yeni bir "Seçilen nokta" kartı açıyordu (özellikle web'de).
+    final until = _ignoreMapTapsUntil;
+    if (until != null && DateTime.now().isBefore(until)) return;
     final int token = ++_customSelectionToken;
     await _setCustomDestination(
       position: position,
@@ -1274,6 +1279,7 @@ class MapService extends ChangeNotifier {
 
   void stopNavigation() {
     _isNavigating = false;
+    _ignoreMapTapsUntil = DateTime.now().add(const Duration(milliseconds: 700));
     _polylines.clear();
     _currentRoutePoints = [];
     _routeArrowMarkers = {};
