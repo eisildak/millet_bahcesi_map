@@ -34,8 +34,6 @@ migrate_working_dir/
 /coverage/
 
 # Gradle local cache - machine-specific, should never be committed.
-# NOT: android/.gradle zaten git'e commit edilmiş durumda; bunu repodan
-# çıkarmak için `git rm -r --cached android/.gradle` çalıştırmanız gerekir.
 .gradle/
 android/.gradle/
 
@@ -82,3 +80,9 @@ GoogleService-Info.plist
 # Firebase configuration
 firebase_options.dart
 build/
+
+# Makineye özel SDK yolları (flutter build yeniden üretir)
+android/local.properties
+
+# CARBON test raporları (yerel, ekran görüntüleri içerir)
+.carbon/
