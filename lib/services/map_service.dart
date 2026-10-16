@@ -249,6 +249,10 @@ class MapService extends ChangeNotifier {
           // Etkinlik noktaları genel noktaların üstünde görünsün.
           zIndexInt: isEvent ? 600 : 500,
           position: LatLng(poi.latitude, poi.longitude),
+          // İkonlar iğne (pin) değil yuvarlak/kare rozet: ortası noktanın tam
+          // üstüne gelsin. Varsayılan alt-orta çapada logo, koordinatın bir
+          // ikon boyu yukarısında görünüyordu.
+          anchor: const Offset(0.5, 0.5),
           // InfoWindow yok: dokununca alttaki nokta kartı açılıyor; balon aynı
           // bilgiyi tekrar ediyor ve navigasyonda rotanın üstünü kapatıyordu.
           icon: icon,
