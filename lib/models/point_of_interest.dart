@@ -182,8 +182,8 @@ class POIData {
       name: 'Nuh Naci Yazgan Üniversitesi Standı',
       description:
           'Nuh Naci Yazgan Üniversitesi tanıtım standı ve bilgi merkezi',
-      latitude: 38.697236,
-      longitude: 35.512980,
+      latitude: 38.697444,
+      longitude: 35.512538,
       category: 'Üniversite',
     ),
   ];
